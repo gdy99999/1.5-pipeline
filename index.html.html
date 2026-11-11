@@ -1,0 +1,2228 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>1.5 (일점오) — 보수적 가치평가 데이터금융 & 파이프라인 프로토타입</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            paper: '#F6F4EF',
+            surface: '#FFFFFF',
+            warmgray: '#EAE6DF',
+            ink: '#181816',
+            muted: '#62605B',
+            sage: {
+              50: '#F0F5F2',
+              100: '#DCEAE3',
+              600: '#275E48',
+              700: '#1D4937',
+              800: '#153729',
+              900: '#0F271D'
+            },
+            bronze: {
+              50: '#FBF7F0',
+              100: '#F3E8D3',
+              600: '#A36316',
+              700: '#844D0E'
+            },
+            crimson: {
+              50: '#FDF2F2',
+              100: '#F9E0E0',
+              700: '#9B2226'
+            }
+          },
+          fontFamily: {
+            sans: ['"Noto Sans KR"', 'Inter', 'sans-serif'],
+            serif: ['"Noto Serif KR"', 'Georgia', 'serif'],
+            mono: ['"Inter"', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #F6F4EF;
+      color: #181816;
+      font-family: 'Noto Sans KR', 'Inter', sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .font-editorial {
+      font-family: 'Noto Serif KR', Georgia, serif;
+    }
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+    /* Blur Paywall Styling */
+    .pro-blur-content {
+      filter: blur(7px);
+      user-select: none;
+      transition: filter 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .pro-unlocked .pro-blur-content {
+      filter: blur(0px);
+      user-select: auto;
+    }
+    .pro-unlocked .pro-lock-overlay {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .pro-card-trigger {
+      position: relative;
+      cursor: pointer;
+    }
+    .pro-unlocked .pro-card-trigger {
+      cursor: default;
+    }
+    .pro-lock-overlay {
+      transition: all 0.25s ease;
+    }
+    .pro-card-trigger:hover .pro-lock-badge {
+      transform: translateY(-2px);
+      background-color: #1D4937;
+      color: #FFFFFF;
+    }
+    /* Custom subtle scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F6F4EF;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D0CBC1;
+      border-radius: 3px;
+    }
+    .pipeline-node-active {
+      border-color: #1D4937 !important;
+      background-color: #F0F5F2 !important;
+      box-shadow: 0 4px 16px rgba(29, 73, 55, 0.12);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-sage-100 selection:text-sage-900">
+
+  <!-- Top Philosophy & Pipeline Status Bar -->
+  <div class="bg-[#181816] text-[#EAE6DF] text-xs border-b border-[#2E2D2A]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center justify-between gap-2">
+      <div class="flex items-center gap-2.5">
+        <span class="inline-block w-2 h-2 rounded-full bg-[#4E9F76]"></span>
+        <span class="font-medium text-white">기업 철학:</span>
+        <span class="text-[#C7C3B8]">1차 자료(DART 주석)의 정확성과 2차 자료(요약 포털)의 시인성, 그 사이의 해답 — <strong class="text-white font-normal">원금 보존 안전 기준선 중심의 가치투자</strong></span>
+      </div>
+      <div class="flex items-center gap-4 text-[11px] text-[#A8A49B] tabular-nums">
+        <span>파이프라인: <strong class="text-[#EAE6DF]">EOD 야간 일괄 연산 완료 (DART 주석 LLM+휴먼 QA 검증 필)</strong></span>
+        <span class="hidden md:inline">|</span>
+        <span class="hidden md:inline">컴플라이언스: <strong class="text-[#EAE6DF]">객관적 수치 사실 고지 준수</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Header & Navigation -->
+  <header class="sticky top-0 z-30 bg-[#F6F4EF]/95 backdrop-blur-md border-b border-[#E2DDD5]">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <!-- Brand Logo -->
+      <div class="flex items-center gap-3">
+        <button id="brandHomeBtn" class="flex items-center gap-3 text-left group focus:outline-none">
+          <div class="w-10 h-10 rounded-lg bg-[#181816] text-[#F6F4EF] flex items-center justify-center font-editorial font-bold text-xl tracking-tight group-hover:bg-sage-700 transition-colors">
+            1.5
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-editorial font-bold text-lg tracking-tight text-ink">일점오 (1.5)</span>
+              <span class="text-[11px] px-2 py-0.5 rounded bg-warmgray text-ink font-medium">KOSPI · KOSDAQ 가치주 전용</span>
+            </div>
+            <p class="text-xs text-muted">보수적 청산가치 및 안전마진 데이터금융 서비스</p>
+          </div>
+        </button>
+      </div>
+
+      <!-- Primary Navigation Tabs (Page Separation) -->
+      <nav class="flex items-center bg-[#EAE6DF] p-1 rounded-lg border border-[#DCD7CE] overflow-x-auto max-w-full" aria-label="주요 페이지 탐색">
+        <button data-tab="valuation" class="nav-tab-btn px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all bg-surface text-ink shadow-sm whitespace-nowrap">
+          1. 가치평가 홈 (핵심 지표)
+        </button>
+        <button data-tab="pipeline" class="nav-tab-btn px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all text-muted hover:text-ink whitespace-nowrap">
+          2. 데이터 파이프라인 & QA
+        </button>
+        <button data-tab="portfolio" class="nav-tab-btn px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all text-muted hover:text-ink whitespace-nowrap">
+          3. 포트폴리오 시뮬레이션 & 알림
+        </button>
+        <button data-tab="philosophy" class="nav-tab-btn px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all text-muted hover:text-ink whitespace-nowrap">
+          4. 기업철학 · 컴플라이언스 · 로드맵
+        </button>
+      </nav>
+
+      <!-- Membership State & Login / Pro CTA -->
+      <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2 bg-surface px-3 py-1.5 rounded-lg border border-[#DCD7CE]">
+          <span class="text-xs text-muted">현재 모드:</span>
+          <span id="currentTierBadge" class="text-xs font-semibold text-bronze-700 bg-bronze-50 px-2 py-0.5 rounded border border-bronze-100">
+            무료 체험 (상위 10대 종목 일부 개방)
+          </span>
+          <button id="quickToggleProBtn" class="text-[11px] underline text-sage-700 hover:text-sage-900 font-medium ml-1" title="클릭하여 무료 블러 상태와 PRO 잠금해제 상태를 즉시 비교합니다">
+            PRO 즉시 전환 테스트
+          </button>
+        </div>
+        <button id="openProModalHeaderBtn" class="px-3.5 py-2 rounded-lg bg-sage-700 hover:bg-sage-800 text-white text-xs sm:text-sm font-semibold transition-colors shadow-sm whitespace-nowrap">
+          로그인 · PRO 구독 (월 9,900원)
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main id="appContainer" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ==========================================
+         PAGE 1: 핵심 가치평가 홈 (첫 페이지)
+         ========================================== -->
+    <section id="view-valuation" class="space-y-6">
+
+      <!-- Top Stock Selector & Free Tier Notice Bar -->
+      <div class="bg-surface rounded-xl border border-[#DFDBD2] p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold uppercase tracking-wider text-sage-700">국내 상장 가치주 · 자산주 분석 대상</span>
+            <span class="text-[11px] text-muted">| 무료 회원은 상위 대표 종목의 [청산가치]와 [실질 현금흐름]이 무료 공개됩니다.</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 pt-1" id="stockSelectorGroup">
+            <!-- Dynamically populated buttons -->
+          </div>
+        </div>
+
+        <!-- Search & Sector Filter Info -->
+        <div class="flex items-center gap-2 self-start lg:self-center">
+          <div class="relative">
+            <input id="stockSearchInput" type="text" placeholder="종목명 또는 코드 검색 (예: 태광산업)" class="w-56 sm:w-64 pl-3 pr-8 py-2 text-xs bg-[#F6F4EF] border border-[#D5D0C5] rounded-lg focus:outline-none focus:border-sage-700 text-ink" />
+            <button id="stockSearchBtn" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink text-xs font-medium">
+              검색
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sector Suitability Warning Banner (Shown conditionally or gently explained) -->
+      <div id="sectorSuitabilityBanner" class="hidden rounded-xl border border-crimson-100 bg-crimson-50 p-4 text-xs text-crimson-700 flex items-start justify-between gap-4">
+        <div class="space-y-1">
+          <p class="font-bold text-sm">⚠️ 무형자산 중심 섹터 (플랫폼 · 바이오) 보수적 청산가치 적용 안내</p>
+          <p class="leading-relaxed">
+            ‘1.5’의 하방 청산가치 지표는 현금(100%), 매출채권(75%), 재고자산(50%)만을 인정하고 무형자산(영업권·개발비)을 0원으로 보수적 평가합니다. 따라서 본 종목과 같은 바이오·플랫폼 기업은 구조적으로 NCAV 기준치를 통과하기 어려우며, 전통 가치주 및 자산주 평가에 최적화된 지표임을 명확히 고지합니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- ESSENTIAL TOP SUMMARY HERO (최상단 명료 배치 영역) -->
+      <div class="bg-surface rounded-2xl border border-[#DFDBD2] shadow-sm overflow-hidden">
+        <!-- Top Strip inside Hero -->
+        <div class="bg-[#EFECE6] px-6 py-3 border-b border-[#DFDBD2] flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-3">
+            <span id="heroStockCode" class="font-mono text-xs font-semibold px-2 py-0.5 rounded bg-ink text-white">003240</span>
+            <span id="heroStockSector" class="text-xs font-medium text-muted">KOSPI · 석유화학/섬유 전통 자산주</span>
+            <span id="heroQaStatus" class="text-[11px] px-2 py-0.5 rounded bg-sage-50 text-sage-700 border border-sage-100 font-medium">
+              ✓ DART 제63기 사업보고서 주석 파싱 · 휴먼 샘플링 QA 완료
+            </span>
+          </div>
+          <div class="text-xs text-muted tabular-nums">
+            기준 종가 (EOD Batch): <strong id="heroCurrentPrice" class="text-ink font-semibold">642,000원</strong>
+            <span class="mx-1.5">|</span>
+            시가총액: <strong id="heroMarketCap" class="text-ink font-semibold">7,148억 원</strong>
+          </div>
+        </div>
+
+        <!-- Main Hero Grid: Left (Essential Friendly Conclusion) / Center (Safety Margin Ratio) / Right (1.5 Index - Blurred in Free) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-[#EAE6DF]">
+
+          <!-- Left 5 Cols: Friendly Conclusion & Core Numbers -->
+          <div class="lg:col-span-5 p-6 flex flex-col justify-between space-y-4">
+            <div class="space-y-2">
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold text-muted">분석 대상 기업</span>
+                <span id="heroComplianceBadge" class="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sage-100 text-sage-800">
+                  NCAV 보수적 기준치 상회 (+34.2%)
+                </span>
+              </div>
+              <h1 id="heroStockName" class="font-editorial text-2xl sm:text-3xl font-bold text-ink tracking-tight">
+                태광산업
+              </h1>
+              <!-- Friendly Plain-Language Summary -->
+              <div class="bg-[#F6F4EF] p-4 rounded-xl border border-[#E5E0D6] space-y-1.5">
+                <div class="flex items-center gap-1.5 text-xs font-bold text-sage-800">
+                  <span>💡 비전문가를 위한 한 줄 친절 해설</span>
+                </div>
+                <p id="heroFriendlySummary" class="text-xs sm:text-sm text-ink leading-relaxed">
+                  회사가 가진 현금은 100%, 받을 외상값(매출채권)은 75%, 창고 재고는 절반(50%)만 쳐서 <strong>주석 속 숨은 우발부채까지 모두 갚아도 9,593억 원</strong>이 남습니다. 현재 시가총액(7,148억 원)보다 청산가치가 높아 하방 안전마진이 확보된 구간입니다.
+                </p>
+              </div>
+            </div>
+
+            <!-- Essential Key Metric Comparison Bar -->
+            <div class="pt-2 space-y-2">
+              <div class="flex justify-between text-xs">
+                <span class="text-muted">현재 시가총액 대비 보수적 청산가치(NCAV) 비율</span>
+                <strong id="heroNcavRatioText" class="text-sage-700 font-bold tabular-nums">134.2% (안전 기준선 100% 통과)</strong>
+              </div>
+              <div class="w-full h-3 bg-[#EAE6DF] rounded-full overflow-hidden relative">
+                <!-- 100% baseline marker -->
+                <div class="absolute top-0 bottom-0 left-[65%] w-0.5 bg-ink z-10" title="안전 기준선 (100%)"></div>
+                <div id="heroNcavProgressBar" class="h-full bg-sage-600 rounded-full transition-all duration-500" style="width: 85%;"></div>
+              </div>
+              <div class="flex justify-between text-[11px] text-muted tabular-nums">
+                <span>0% (위험)</span>
+                <span class="text-ink font-medium">▲ 100% (원금 보존 안전 기준선)</span>
+                <span>150%+ (초과 안전마진)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Center 4 Cols: Liquidation Value Breakdown Summary -->
+          <div class="lg:col-span-4 p-6 flex flex-col justify-between bg-[#FAF9F6]">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-muted">하방 안전마진 핵심 연산 요약</h2>
+                <span class="text-[11px] text-sage-700 font-medium">무료 개방 데이터</span>
+              </div>
+
+              <div class="space-y-2.5 pt-1 text-xs tabular-nums">
+                <div class="flex justify-between items-center py-1.5 border-b border-[#EAE6DF]">
+                  <span class="text-muted">① 보수적 인정 유동자산 <span class="text-[11px]">(100·75·50% 차등)</span></span>
+                  <strong id="heroDiscountedAssets" class="text-ink font-semibold">1조 8,420억 원</strong>
+                </div>
+                <div class="flex justify-between items-center py-1.5 border-b border-[#EAE6DF]">
+                  <span class="text-muted">② 재무제표상 총부채 차감</span>
+                  <strong id="heroTotalLiabilities" class="text-ink font-semibold">- 7,915억 원</strong>
+                </div>
+                <div class="flex justify-between items-center py-1.5 border-b border-[#EAE6DF] text-crimson-700 bg-crimson-50/60 px-2 rounded">
+                  <span>③ DART 주석 우발·리스부채 추가 차감</span>
+                  <strong id="heroFootnoteLiabilities" class="font-bold">- 912억 원</strong>
+                </div>
+                <div class="flex justify-between items-center pt-2 text-sm">
+                  <span class="font-bold text-ink">최종 보수적 순청산가치 (1.5 NCAV)</span>
+                  <strong id="heroFinalNcav" class="font-editorial font-bold text-lg text-sage-700">9,593억 원</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-[#EAE6DF] flex items-center justify-between text-xs">
+              <span class="text-muted">주당 보수적 청산가치 (안전 기준선)</span>
+              <strong id="heroPerShareNcav" class="text-ink font-bold tabular-nums text-sm">861,500원 / 주</strong>
+            </div>
+          </div>
+
+          <!-- Right 3 Cols: The Proprietary "1.5 Index" (BLURRED IN FREE MODE) -->
+          <div id="heroProCard" class="lg:col-span-3 p-6 bg-[#F3F1EC] flex flex-col justify-between pro-card-trigger group" role="button" tabindex="0" aria-label="1.5 종합 지수 및 비대칭 손익비 확인 (PRO 전용)">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold uppercase tracking-wider text-ink">독자 금융공학 지표</span>
+              <span class="pro-lock-badge text-[11px] font-semibold px-2 py-0.5 rounded bg-ink text-white transition-all">
+                PRO 전용
+              </span>
+            </div>
+
+            <!-- Blurred Content Wrapper -->
+            <div class="my-auto py-4 relative">
+              <div class="pro-blur-content space-y-3">
+                <div class="flex items-baseline gap-2">
+                  <span class="text-xs text-muted">1.5 종합 지수:</span>
+                  <span id="hero15IndexScore" class="font-editorial text-4xl font-bold text-sage-700 tabular-nums">1.84</span>
+                  <span class="text-xs font-semibold text-sage-700">/ 2.00</span>
+                </div>
+                <div class="text-xs space-y-1.5 tabular-nums">
+                  <div class="flex justify-between">
+                    <span class="text-muted">하방 경직성 백분위:</span>
+                    <strong id="heroDownsidePercentile" class="text-ink">상위 4.2% (안정)</strong>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-muted">비대칭 손익비 (상방/하방):</span>
+                    <strong id="heroAsymmetricRatio" class="text-sage-700">1 : 3.15</strong>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-muted">과거 5년 유사구간 승률:</span>
+                    <strong id="heroBacktestWinRate" class="text-ink">82.4% (KOSPI +19.8%p)</strong>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Overlay Callout for Free Mode -->
+              <div class="pro-lock-overlay absolute inset-0 flex flex-col items-center justify-center text-center p-3 bg-[#F3F1EC]/40 rounded-xl">
+                <div class="w-9 h-9 rounded-full bg-ink text-white flex items-center justify-center mb-2 shadow-md">
+                  🔒
+                </div>
+                <p class="text-xs font-bold text-ink">1.5 지수 & 비대칭 손익비 잠금</p>
+                <p class="text-[11px] text-muted mt-0.5 leading-snug">
+                  클릭하여 로그인 및 월 9,900원 PRO 모드로 최적 진입 기준선을 확인하세요
+                </p>
+              </div>
+            </div>
+
+            <div class="text-[11px] text-muted border-t border-[#DFDBD2] pt-2.5 flex items-center justify-between">
+              <span>결정적 승부처 데이터</span>
+              <span class="font-semibold text-sage-700 group-hover:underline">잠금 해제하기 →</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 4 CORE EVALUATION METRICS GRID (4대 핵심 평가 지표 체계) -->
+      <div class="space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 class="font-editorial text-lg sm:text-xl font-bold text-ink">4대 핵심 평가 지표 체계 (1.5 Index Pillars)</h2>
+            <p class="text-xs text-muted">DART 사업보고서 주석 데이터와 KRX 수급 데이터를 결합한 4가지 객관적 검증 기준입니다.</p>
+          </div>
+          <!-- Deep Mode Toggle Button (심층모드 원클릭 버튼) -->
+          <button id="toggleDeepModeBtn" class="px-4 py-2.5 rounded-xl bg-ink hover:bg-sage-800 text-white text-xs sm:text-sm font-semibold transition-all shadow-sm flex items-center gap-2">
+            <span>📊 심층모드: 다중 비교 그래프 & 주석 원문 데이터 펼치기</span>
+            <span id="deepModeArrow" class="transition-transform duration-200">▼</span>
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+          <!-- Pillar 1: 하방 청산가치 지표 (FREE) -->
+          <div class="bg-surface rounded-xl border border-[#DFDBD2] p-5 flex flex-col justify-between shadow-sm">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-sage-50 text-sage-700 border border-sage-100">
+                  1. 절대 원칙 (무료 공개)
+                </span>
+                <span id="pillar1Status" class="text-xs font-bold text-sage-700">기준 통과</span>
+              </div>
+              <div>
+                <h3 class="font-bold text-base text-ink">하방 청산가치 지표</h3>
+                <p class="text-[11px] text-muted mt-0.5">최악의 상황에도 하방을 지지하는 안전마진 기준선</p>
+              </div>
+              <div class="pt-2 border-t border-[#EAE6DF] flex items-baseline justify-between tabular-nums">
+                <span class="text-xs text-muted">안전마진 괴리율</span>
+                <strong id="pillar1Value" class="font-editorial text-2xl font-bold text-sage-700">+34.2%</strong>
+              </div>
+              <div class="text-xs text-ink space-y-1 bg-[#F6F4EF] p-3 rounded-lg border border-[#E5E0D6]">
+                <p class="font-semibold text-[11px] text-sage-800">친절한 검증 원리 설명</p>
+                <p id="pillar1Desc" class="text-[11px] text-muted leading-relaxed">
+                  하위 25% 보수적 기준 적용: 현금 100%, 매출채권 75%, 재고 50%만 인정하고 주석 내 우발·리스부채(912억)를 100% 차감한 순청산가치입니다.
+                </p>
+              </div>
+            </div>
+            <div class="mt-4 pt-2.5 border-t border-[#EAE6DF] text-[11px] text-muted flex justify-between tabular-nums">
+              <span>주석 우발부채 차감률</span>
+              <strong id="pillar1Sub" class="text-ink">유동자산 대비 4.9% 차감</strong>
+            </div>
+          </div>
+
+          <!-- Pillar 2: 실질 여유 현금 창출력 (FREE) -->
+          <div class="bg-surface rounded-xl border border-[#DFDBD2] p-5 flex flex-col justify-between shadow-sm">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-sage-50 text-sage-700 border border-sage-100">
+                  2. 성장 확신 (무료 공개)
+                </span>
+                <span id="pillar2Status" class="text-xs font-bold text-sage-700">3년 연속 흑자</span>
+              </div>
+              <div>
+                <h3 class="font-bold text-base text-ink">실질 여유 현금 창출력</h3>
+                <p class="text-[11px] text-muted mt-0.5">장부상 회계 이익이 아닌 실제 통장에 꽂히는 현금</p>
+              </div>
+              <div class="pt-2 border-t border-[#EAE6DF] flex items-baseline justify-between tabular-nums">
+                <span class="text-xs text-muted">3개년 평균 실질 FCF</span>
+                <strong id="pillar2Value" class="font-editorial text-2xl font-bold text-ink">+1,185억 원</strong>
+              </div>
+              <div class="text-xs text-ink space-y-1 bg-[#F6F4EF] p-3 rounded-lg border border-[#E5E0D6]">
+                <p class="font-semibold text-[11px] text-sage-800">친절한 검증 원리 설명</p>
+                <p id="pillar2Desc" class="text-[11px] text-muted leading-relaxed">
+                  회계상 영업이익의 착시를 방어하기 위해, 실제 영업활동현금흐름에서 공장 유지 등 필수 설비투자금(CAPEX)을 뺀 3년 치 잉여현금흐름을 추적합니다.
+                </p>
+              </div>
+            </div>
+            <div class="mt-4 pt-2.5 border-t border-[#EAE6DF] text-[11px] text-muted flex justify-between tabular-nums">
+              <span>시총 대비 FCF 수익률</span>
+              <strong id="pillar2Sub" class="text-sage-700">연 16.5% 현금 창출력</strong>
+            </div>
+          </div>
+
+          <!-- Pillar 3: 산업 생태계 건전성 (BLURRED IN FREE MODE) -->
+          <div class="bg-surface rounded-xl border border-[#DFDBD2] p-5 flex flex-col justify-between shadow-sm pro-card-trigger group" role="button" tabindex="0">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-bronze-50 text-bronze-700 border border-bronze-100">
+                  3. 산업 흐름 (PRO 전용)
+                </span>
+                <span class="pro-lock-badge text-[11px] font-semibold px-2 py-0.5 rounded bg-warmgray text-ink transition-all">
+                  🔒 블러 해제
+                </span>
+              </div>
+              <div>
+                <h3 class="font-bold text-base text-ink">산업 생태계 건전성</h3>
+                <p class="text-[11px] text-muted mt-0.5">특정 기업 독식이 아닌 산업 전반의 자본 낙수효과</p>
+              </div>
+
+              <!-- Blurred Numeric Section -->
+              <div class="relative py-1">
+                <div class="pro-blur-content space-y-2">
+                  <div class="pt-2 border-t border-[#EAE6DF] flex items-baseline justify-between tabular-nums">
+                    <span class="text-xs text-muted">HHI 변형 자본분배 지수</span>
+                    <strong id="pillar3Value" class="font-editorial text-2xl font-bold text-sage-700">0.74 (양호)</strong>
+                  </div>
+                  <div class="text-[11px] text-muted flex justify-between tabular-nums bg-[#F6F4EF] p-2.5 rounded-lg">
+                    <span>산업 총 현금흐름 내 점유:</span>
+                    <strong id="pillar3Sub" class="text-ink">상위 18% · 낙수효과 유입 중</strong>
+                  </div>
+                </div>
+                <!-- Hover/Click Lock Prompt -->
+                <div class="pro-lock-overlay absolute inset-0 flex items-center justify-center bg-surface/60 rounded-lg">
+                  <span class="text-xs font-bold text-ink bg-warmgray/90 px-3 py-1.5 rounded-full shadow-sm border border-[#D5D0C5] group-hover:bg-sage-700 group-hover:text-white transition-colors">
+                    클릭하여 산업 자본분배율 확인
+                  </span>
+                </div>
+              </div>
+
+              <div class="text-xs text-ink space-y-1 bg-[#F6F4EF] p-3 rounded-lg border border-[#E5E0D6]">
+                <p class="font-semibold text-[11px] text-sage-800">친절한 검증 원리 설명</p>
+                <p class="text-[11px] text-muted leading-relaxed">
+                  HHI(허핀달-허쉬만) 변형 공식을 통해 섹터 전체의 총 현금흐름 규모와 1등 기업-중소형 기업 간의 자본 분배율을 정밀 비교합니다.
+                </p>
+              </div>
+            </div>
+            <div class="mt-4 pt-2.5 border-t border-[#EAE6DF] text-[11px] text-muted flex justify-between">
+              <span>상위 10대 종목 무료 제외 항목</span>
+              <span class="text-sage-700 font-semibold group-hover:underline">월 9,900원 PRO →</span>
+            </div>
+          </div>
+
+          <!-- Pillar 4: 전망-수급 괴리 지수 (BLURRED IN FREE MODE) -->
+          <div class="bg-surface rounded-xl border border-[#DFDBD2] p-5 flex flex-col justify-between shadow-sm pro-card-trigger group" role="button" tabindex="0">
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded bg-bronze-50 text-bronze-700 border border-bronze-100">
+                  4. 괴리 검증 (PRO 전용)
+                </span>
+                <span class="pro-lock-badge text-[11px] font-semibold px-2 py-0.5 rounded bg-warmgray text-ink transition-all">
+                  🔒 블러 해제
+                </span>
+              </div>
+              <div>
+                <h3 class="font-bold text-base text-ink">전망-수급 괴리 지수</h3>
+                <p class="text-[11px] text-muted mt-0.5">증권사 낙관적 전망 vs 기관·외국인 실제 매매 교차검증</p>
+              </div>
+
+              <!-- Blurred Numeric Section -->
+              <div class="relative py-1">
+                <div class="pro-blur-content space-y-2">
+                  <div class="pt-2 border-t border-[#EAE6DF] flex items-baseline justify-between tabular-nums">
+                    <span class="text-xs text-muted">전망-수급 괴리 상태</span>
+                    <strong id="pillar4Value" class="font-editorial text-2xl font-bold text-sage-700">-12.4% (저평가 매집)</strong>
+                  </div>
+                  <div class="text-[11px] text-muted flex justify-between tabular-nums bg-[#F6F4EF] p-2.5 rounded-lg">
+                    <span>리포트 관심도 낮음 / 기관 순매수:</span>
+                    <strong id="pillar4Sub" class="text-ink">20일 누적 +142억 유입</strong>
+                  </div>
+                </div>
+                <!-- Hover/Click Lock Prompt -->
+                <div class="pro-lock-overlay absolute inset-0 flex items-center justify-center bg-surface/60 rounded-lg">
+                  <span class="text-xs font-bold text-ink bg-warmgray/90 px-3 py-1.5 rounded-full shadow-sm border border-[#D5D0C5] group-hover:bg-sage-700 group-hover:text-white transition-colors">
+                    클릭하여 수급 괴리율 확인
+                  </span>
+                </div>
+              </div>
+
+              <div class="text-xs text-ink space-y-1 bg-[#F6F4EF] p-3 rounded-lg border border-[#E5E0D6]">
+                <p class="font-semibold text-[11px] text-sage-800">친절한 검증 원리 설명</p>
+                <p class="text-[11px] text-muted leading-relaxed">
+                  증권사 보고서의 긍정 평가 비율 대비 실제 기관·외국인의 매수/매도 강도 데이터를 교차 비교하여 시장의 과열이나 소외 왜곡을 감지합니다.
+                </p>
+              </div>
+            </div>
+            <div class="mt-4 pt-2.5 border-t border-[#EAE6DF] text-[11px] text-muted flex justify-between">
+              <span>Phase 1.5 NLP 고도화 연동 대상</span>
+              <span class="text-sage-700 font-semibold group-hover:underline">월 9,900원 PRO →</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ==========================================
+           DEEP MODE DRAWER (심층모드: 원클릭 비교 그래프 & 주석 원본 표)
+           ========================================== -->
+      <div id="deepModePanel" class="bg-surface rounded-2xl border-2 border-ink shadow-md overflow-hidden transition-all">
+        <div class="bg-ink text-white px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+          <div class="space-y-0.5">
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] px-2 py-0.5 rounded bg-sage-600 text-white font-semibold">심층 확장 모드 (Step-by-Step UI)</span>
+              <h3 class="font-editorial text-base sm:text-lg font-bold">전문가용 시계열 비교 그래프 & DART 주석 정밀 분해표</h3>
+            </div>
+            <p class="text-xs text-[#C7C3B8]">
+              기획안 Q4 반영: 기본 화면은 일상 용어로 결론을 제시하되, 버튼 한 번으로 원본 데이터·시간 흐름 차트·매매 동향 표를 동일 UI 내에 제공합니다.
+            </p>
+          </div>
+
+          <!-- Chart Metric Switcher Buttons -->
+          <div class="flex flex-wrap items-center gap-1.5 bg-[#2A2926] p-1 rounded-lg">
+            <button data-chart-mode="ncavBand" class="deep-chart-btn px-3 py-1.5 rounded text-xs font-semibold bg-white text-ink transition-all">
+              ① 청산가치 안전마진 밴드 & 하락장 방어 백테스트
+            </button>
+            <button data-chart-mode="fcfComparison" class="deep-chart-btn px-3 py-1.5 rounded text-xs font-medium text-[#C7C3B8] hover:text-white transition-all">
+              ② 회계상 영업이익 vs 실질 FCF (3개년)
+            </button>
+            <button data-chart-mode="divergence" class="deep-chart-btn px-3 py-1.5 rounded text-xs font-medium text-[#C7C3B8] hover:text-white transition-all">
+              ③ 증권사 목표가 괴리 vs 기관·외인 수급
+            </button>
+          </div>
+        </div>
+
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <!-- Left 7 Cols: Interactive Chart.js Canvas -->
+          <div class="lg:col-span-7 bg-[#FAF9F6] p-5 rounded-xl border border-[#E5E0D6] space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 id="deepChartTitle" class="font-bold text-sm text-ink">주가 vs 1.5 보수적 청산가치(NCAV) 기준선 및 KOSPI 상대수익률 추이</h4>
+                <p id="deepChartSubtitle" class="text-xs text-muted">하방 안전마진(녹색 점선) 아래에서 진입 시 하락장 방어력 및 상방 복원력을 검증합니다.</p>
+              </div>
+              <span class="text-[11px] font-mono px-2 py-1 rounded bg-warmgray text-ink">PiT(Point-in-Time) 검증 데이터</span>
+            </div>
+
+            <!-- Fixed Height Chart Container per Skill Rule 4 -->
+            <div class="relative h-72 w-full">
+              <canvas id="deepAnalysisChart"></canvas>
+            </div>
+
+            <div id="deepChartFootnote" class="text-[11px] text-muted bg-surface p-3 rounded-lg border border-[#EAE6DF] leading-relaxed">
+              📌 <strong>백테스트 검증 요약:</strong> 2022~2026년 하락장 구간에서 KOSPI 지수가 -18.4% 조정받을 때, 1.5 보수적 청산가치 하위 25% 기준선 통과 종목군은 최대 낙폭(MDD) -6.2%로 방어하며 누적 <strong>+24.6%p 초과수익률</strong>을 기록했습니다.
+            </div>
+          </div>
+
+          <!-- Right 5 Cols: DART Footnote Asset/Liability Haircut Table -->
+          <div class="lg:col-span-5 bg-[#FAF9F6] p-5 rounded-xl border border-[#E5E0D6] space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="font-bold text-sm text-ink">DART 재무제표 + 주석 원문 정밀 가중치 연산표</h4>
+                <p class="text-xs text-muted">단순 포털 요약에는 나오지 않는 주석 내 숨은 부채 차감 내역입니다.</p>
+              </div>
+              <span class="text-[11px] px-2 py-0.5 rounded bg-sage-100 text-sage-800 font-semibold">하위 25% 보수적 기준</span>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left border-collapse tabular-nums">
+                <thead>
+                  <tr class="border-b border-[#D5D0C5] text-muted">
+                    <th class="py-2 font-semibold">계정 및 주석 항목</th>
+                    <th class="py-2 font-semibold text-right">장부 원문 금액</th>
+                    <th class="py-2 font-semibold text-center">1.5 가중치</th>
+                    <th class="py-2 font-semibold text-right">보수적 인정액</th>
+                  </tr>
+                </thead>
+                <tbody id="deepFootnoteTableBody" class="divide-y divide-[#EAE6DF]">
+                  <!-- Populated dynamically per selected stock -->
+                </tbody>
+              </table>
+            </div>
+
+            <div class="bg-surface p-3 rounded-lg border border-[#EAE6DF] text-[11px] text-muted space-y-1">
+              <div class="font-semibold text-ink">🔍 DART 주석 LLM 파싱 + 휴먼 QA 추출 원문 요약:</div>
+              <p id="deepFootnoteRawExcerpt" class="font-mono text-[11px] text-ink bg-[#F6F4EF] p-2 rounded">
+                "주석 29. 우발채무 및 약정사항: 당기말 현재 계열사 및 협력사 관련 채무보증 약정 한도액 540억 원 및 진행 중인 환경·노무 관련 계류소송 소가 182억 원, 미인식 운용리스 약정 190억 원을 보수적 부채로 100% 차감 반영함."
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==========================================
+         PAGE 2: 데이터 파이프라인 & 하이브리드 QA 아키텍처 (기획안 4장, 5장)
+         ========================================== -->
+    <section id="view-pipeline" class="hidden space-y-6">
+      <div class="bg-surface rounded-2xl border border-[#DFDBD2] p-6 shadow-sm space-y-6">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE6DF] pb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-sage-700">기술 아키텍처 및 비용 구조 현실화 (기획서 4장 · 5장 Q3)</span>
+            <h2 class="font-editorial text-2xl font-bold text-ink mt-0.5">EOD 야간 일괄 데이터 파이프라인 & 하이브리드 검증 시뮬레이터</h2>
+            <p class="text-xs sm:text-sm text-muted mt-1">
+              실시간 시세 연동을 배제해 서버비를 획기적으로 낮추고, 비정형 DART 주석 파싱 오류를 막기 위해 <strong>LLM 정형화 + 4단계 이상치 큐 + 분기별 휴먼 샘플링 QA</strong>를 결합했습니다.
+            </p>
+          </div>
+          <button id="runPipelineSimBtn" class="px-4 py-2.5 rounded-xl bg-sage-700 hover:bg-sage-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all flex items-center gap-2">
+            <span>▶ 야간 EOD 배치 파이프라인 시뮬레이션 실행</span>
+          </button>
+        </div>
+
+        <!-- 5-Stage Interactive Pipeline Nodes -->
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3" id="pipelineStageGrid">
+          <div data-stage="1" class="pipeline-stage-card pipeline-node-active cursor-pointer rounded-xl border-2 border-[#DFDBD2] bg-[#FAF9F6] p-4 transition-all">
+            <div class="flex items-center justify-between text-xs font-bold text-sage-800 mb-1">
+              <span>STAGE 01</span>
+              <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-warmgray">18:00 KST</span>
+            </div>
+            <h3 class="font-bold text-sm text-ink">장 마감 EOD 수집</h3>
+            <p class="text-[11px] text-muted mt-1 leading-relaxed">
+              Koscom/KRX 상업용 EOD 종가·기관/외인 수급 데이터 및 DART 정기·수시공시 원문(XML/HTML) 일괄 수집
+            </p>
+          </div>
+
+          <div data-stage="2" class="pipeline-stage-card cursor-pointer rounded-xl border-2 border-[#DFDBD2] bg-[#FAF9F6] p-4 transition-all">
+            <div class="flex items-center justify-between text-xs font-bold text-sage-800 mb-1">
+              <span>STAGE 02</span>
+              <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-warmgray">캐싱 적용</span>
+            </div>
+            <h3 class="font-bold text-sm text-ink">LLM 비정형 주석 파서</h3>
+            <p class="text-[11px] text-muted mt-1 leading-relaxed">
+              단순 규칙 파서가 놓치는 주석 내 우발부채·리스·소송·채권연령 표를 LLM이 표준 JSON 스키마로 정형화 (해시 캐싱으로 API 비용 방어)
+            </p>
+          </div>
+
+          <div data-stage="3" class="pipeline-stage-card cursor-pointer rounded-xl border-2 border-[#DFDBD2] bg-[#FAF9F6] p-4 transition-all">
+            <div class="flex items-center justify-between text-xs font-bold text-sage-800 mb-1">
+              <span>STAGE 03</span>
+              <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-warmgray">PiT DB</span>
+            </div>
+            <h3 class="font-bold text-sm text-ink">1.5 계량 재무공학 엔진</h3>
+            <p class="text-[11px] text-muted mt-1 leading-relaxed">
+              현금 100%·채권 75%·재고 50% 가중치 및 주석부채 차감 연산, FCF 3개년 추이, HHI 자본분배율을 Point-in-Time DB에 적재
+            </p>
+          </div>
+
+          <div data-stage="4" class="pipeline-stage-card cursor-pointer rounded-xl border-2 border-[#DFDBD2] bg-[#FAF9F6] p-4 transition-all">
+            <div class="flex items-center justify-between text-xs font-bold text-bronze-700 mb-1">
+              <span>STAGE 04</span>
+              <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-bronze-100 text-bronze-700">Auto Queue</span>
+            </div>
+            <h3 class="font-bold text-sm text-ink">4단계 이상치 탐지 큐</h3>
+            <p class="text-[11px] text-muted mt-1 leading-relaxed">
+              전기 대비 NCAV ±30% 급변, 단위 오류(백만원/천원 혼선), 주석 신뢰도 점수 92% 미만 종목을 자동 격리 큐에 배치
+            </p>
+          </div>
+
+          <div data-stage="5" class="pipeline-stage-card cursor-pointer rounded-xl border-2 border-[#DFDBD2] bg-[#FAF9F6] p-4 transition-all">
+            <div class="flex items-center justify-between text-xs font-bold text-sage-800 mb-1">
+              <span>STAGE 05</span>
+              <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-sage-100 text-sage-800">QA & Masking</span>
+            </div>
+            <h3 class="font-bold text-sm text-ink">휴먼 QA & API 마스킹</h3>
+            <p class="text-[11px] text-muted mt-1 leading-relaxed">
+              분기별 핵심 종목 수기 샘플링 교차검증 완료 후 배포. 비구독자 요청 시 서버사이드에서 PRO 지표를 마스킹하여 도용 방어
+            </p>
+          </div>
+        </div>
+
+        <!-- Live Inspection Terminal: DART Raw Text -> LLM Structured JSON -> Hybrid QA Log -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+          <!-- Left 6 Cols: DART Unstructured Footnote Parser Comparison -->
+          <div class="lg:col-span-6 bg-[#181816] text-[#EAE6DF] rounded-xl p-5 space-y-3 font-mono text-xs">
+            <div class="flex items-center justify-between border-b border-[#2E2D2A] pb-2.5">
+              <span class="text-[#4E9F76] font-bold" id="pipelineTerminalHeader">[STAGE 01~02] DART 비정형 주석 원문 → LLM 정형화 파싱 비교</span>
+              <div class="flex gap-1.5">
+                <button data-sample-note="contingent" class="sample-note-btn px-2 py-0.5 rounded bg-[#2E2D2A] text-white text-[11px]">우발부채·소송 주석</button>
+                <button data-sample-note="receivables" class="sample-note-btn px-2 py-0.5 rounded bg-transparent text-[#A8A49B] hover:text-white text-[11px]">매출채권 대손 주석</button>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <div class="text-[11px] text-[#A8A49B]">① DART 사업보고서 원문 (비정형 서술형 텍스트 + 표 혼재):</div>
+              <pre id="dartRawTextDisplay" class="bg-[#222220] p-3 rounded-lg text-[11px] text-[#D5D0C5] whitespace-pre-wrap leading-relaxed border border-[#33322E]">[주석 29. 우발채무와 약정사항]
+(1) 당기말 현재 당사는 종속기업 및 협력회사의 차입금에 대하여 54,000백만원의 지급보증을 제공하고 있습니다.
+(2) 당기말 현재 피고로 계류 중인 소송사건은 총 4건(소송가액 합계 18,200백만원)이며, 소송의 결과를 합리적으로 예측할 수 없어 재무제표상 충당부채로 계상하지 아니하였습니다.
+(3) 단기 및 소액자산 리스 약정으로 인해 재무상태표에 인식되지 않은 향후 의무 리스료 총액은 19,000백만원입니다.</pre>
+            </div>
+
+            <div class="space-y-2">
+              <div class="text-[11px] text-[#4E9F76]">② LLM 정형화 엔진 추출 결과 (1.5 보수적 부채 차감 스키마):</div>
+              <pre id="dartParsedJsonDisplay" class="bg-[#121D17] p-3 rounded-lg text-[11px] text-[#A5E3C2] whitespace-pre-wrap leading-relaxed border border-[#275E48]">{
+  "stock_code": "003240",
+  "report_period": "2026.3Q_PiT",
+  "cache_hit": true,
+  "unrecognized_contingent_liabilities_krw": {
+    "debt_guarantee_krw": 54000000000,
+    "pending_litigation_krw": 18200000000,
+    "off_balance_lease_krw": 19000000000,
+    "total_conservative_deduction_krw": 91200000000
+  },
+  "confidence_score": 0.985,
+  "qa_routing": "PASS_AUTO_VERIFIED"
+}</pre>
+            </div>
+          </div>
+
+          <!-- Right 6 Cols: 4-Stage Outlier Queue & Monthly Cost / BEP Calculator -->
+          <div class="lg:col-span-6 space-y-4">
+            <!-- 4-Stage Anomaly Detection Queue Table -->
+            <div class="bg-[#FAF9F6] rounded-xl border border-[#E5E0D6] p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="font-bold text-sm text-ink">4단계 이상치 탐지 자동화 큐 & 휴먼 샘플링 QA 현황</h4>
+                <span class="text-[11px] px-2 py-0.5 rounded bg-sage-100 text-sage-800 font-semibold">오류율 0.00% 방어</span>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs text-left tabular-nums">
+                  <thead>
+                    <tr class="border-b border-[#D5D0C5] text-muted">
+                      <th class="py-1.5">검증 종목</th>
+                      <th class="py-1.5">탐지 사유 (4단계 큐)</th>
+                      <th class="py-1.5">LLM 신뢰도</th>
+                      <th class="py-1.5 text-right">하이브리드 QA 조치</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-[#EAE6DF]">
+                    <tr>
+                      <td class="py-2 font-semibold">태광산업 (003240)</td>
+                      <td class="py-2 text-muted">정상 범위 (주석 29번 일치)</td>
+                      <td class="py-2 text-sage-700 font-semibold">98.5%</td>
+                      <td class="py-2 text-right"><span class="px-2 py-0.5 rounded bg-sage-50 text-sage-700 font-medium">검증 통과</span></td>
+                    </tr>
+                    <tr>
+                      <td class="py-2 font-semibold">세아베스틸지주</td>
+                      <td class="py-2 text-muted">자회사 단위(천원/백만원) 교차점검</td>
+                      <td class="py-2 text-sage-700 font-semibold">96.2%</td>
+                      <td class="py-2 text-right"><span class="px-2 py-0.5 rounded bg-sage-50 text-sage-700 font-medium">단위 정규화 완료</span></td>
+                    </tr>
+                    <tr>
+                      <td class="py-2 font-semibold">한일시멘트 (샘플)</td>
+                      <td class="py-2 text-bronze-700">우발부채 전기대비 +34% 변동 감지</td>
+                      <td class="py-2 text-bronze-700 font-semibold">89.4%</td>
+                      <td class="py-2 text-right"><span class="px-2 py-0.5 rounded bg-bronze-100 text-bronze-700 font-semibold">휴먼 QA 수기 검수필</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Infrastructure & Monthly Fixed Cost BEP Simulator (기획서 4.2 반영) -->
+            <div class="bg-[#FAF9F6] rounded-xl border border-[#E5E0D6] p-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h4 class="font-bold text-sm text-ink">월 고정비 구조 & 손익분기점(BEP) 시뮬레이터 (기획서 4.2항)</h4>
+                  <p class="text-[11px] text-muted">월 9,900원 단일 요금제 기준, 구독자 수에 따른 인프라 자생선(500명) 및 실질 흑자선(1,000명) 검증</p>
+                </div>
+                <span id="bepStatusBadge" class="text-xs font-bold px-2.5 py-1 rounded bg-sage-100 text-sage-800">
+                  1단계 BEP (인프라 자생선) 달성
+                </span>
+              </div>
+
+              <div class="space-y-1.5">
+                <div class="flex justify-between text-xs tabular-nums">
+                  <span class="text-muted">유료 PRO 구독자 수 시뮬레이션:</span>
+                  <strong id="bepSubscriberCountText" class="text-ink font-bold text-sm">650명 (월 매출 643.5만 원)</strong>
+                </div>
+                <input id="bepSubscriberSlider" type="range" min="100" max="2500" step="50" value="650" class="w-full accent-[#1D4937] cursor-pointer" />
+                <div class="flex justify-between text-[11px] text-muted tabular-nums">
+                  <span>100명 (초기)</span>
+                  <span class="text-bronze-700 font-semibold">▲ 500명 (1단계 BEP: 인프라 자생선)</span>
+                  <span class="text-sage-700 font-semibold">▲ 1,000명 (2단계: 실질 흑자선)</span>
+                  <span>2,500명</span>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-3 gap-2 pt-1 text-center tabular-nums">
+                <div class="bg-surface p-2.5 rounded-lg border border-[#EAE6DF]">
+                  <div class="text-[11px] text-muted">서버 인프라 (EOD/PiT DB)</div>
+                  <div class="text-xs font-bold text-ink mt-0.5">월 80만 원 <span class="text-[10px] font-normal text-muted">(60~100만)</span></div>
+                </div>
+                <div class="bg-surface p-2.5 rounded-lg border border-[#EAE6DF]">
+                  <div class="text-[11px] text-muted">Koscom/KRX EOD 라이선스</div>
+                  <div class="text-xs font-bold text-ink mt-0.5">월 220만 원 <span class="text-[10px] font-normal text-muted">(150~300만)</span></div>
+                </div>
+                <div class="bg-surface p-2.5 rounded-lg border border-[#EAE6DF]">
+                  <div class="text-[11px] text-muted">LLM API (주석 캐싱 최적화)</div>
+                  <div class="text-xs font-bold text-ink mt-0.5">월 40만 원 <span class="text-[10px] font-normal text-muted">(30~50만)</span></div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-2 border-t border-[#EAE6DF] text-xs tabular-nums">
+                <span class="text-muted">추정 월 총 고정비 합계: <strong>약 340만 원</strong> (최대 450만 원)</span>
+                <span id="bepNetProfitText" class="font-bold text-sage-700">인프라 고정비 차감 후 월 +303.5만 원</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         PAGE 3: 맞춤형 포트폴리오 시뮬레이션 & 리텐션 알림 (기획안 2.1, 3.2, 5장 Q5)
+         ========================================== -->
+    <section id="view-portfolio" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left 7 Cols: Portfolio Net Return & Transaction Cost Leakage Simulator -->
+        <div class="lg:col-span-7 bg-surface rounded-2xl border border-[#DFDBD2] p-6 shadow-sm space-y-5">
+          <div class="border-b border-[#EAE6DF] pb-4">
+            <span class="text-xs font-bold uppercase tracking-wider text-sage-700">핵심 상품 기능 2 (기획서 2.1항)</span>
+            <h2 class="font-editorial text-xl sm:text-2xl font-bold text-ink mt-0.5">맞춤형 포트폴리오 실질 순수익률 & 안전마진 진단기</h2>
+            <p class="text-xs text-muted mt-1">
+              실제 투자와 모의투자 구분 없이 본인의 매매 단가와 비중을 적용하여, <strong>잦은 매매로 누수되는 실질 거래 비용(증권거래세 및 수수료)이 차감된 정확한 순수익률</strong>과 포트폴리오 전체의 청산가치 안전마진을 연산합니다.
+            </p>
+          </div>
+
+          <!-- Controls for Simulation -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[#FAF9F6] p-4 rounded-xl border border-[#E5E0D6]">
+            <div>
+              <label class="block text-[11px] font-semibold text-muted mb-1" for="simTotalCapital">총 투자 원금 (만 원)</label>
+              <input id="simTotalCapital" type="number" value="5000" min="100" step="100" class="w-full px-3 py-1.5 text-sm font-bold bg-surface border border-[#D5D0C5] rounded-lg tabular-nums" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-muted mb-1" for="simTurnoverCount">연간 매매 회전 횟수 (회/년)</label>
+              <input id="simTurnoverCount" type="number" value="18" min="1" max="200" step="1" class="w-full px-3 py-1.5 text-sm font-bold bg-surface border border-[#D5D0C5] rounded-lg tabular-nums" />
+              <span class="text-[10px] text-muted">단기 매매 시 세금·수수료 누수 증가</span>
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-muted mb-1" for="simGrossReturn">목표(또는 현재) 명목 수익률 (%)</label>
+              <input id="simGrossReturn" type="number" value="14.5" step="0.5" class="w-full px-3 py-1.5 text-sm font-bold bg-surface border border-[#D5D0C5] rounded-lg tabular-nums" />
+            </div>
+          </div>
+
+          <!-- Portfolio Holdings Table -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold uppercase tracking-wider text-muted">내 관심 · 보유 종목 비중 조정 (가중평균 안전마진 자동 연산)</h3>
+              <button id="resetPortfolioWeightsBtn" class="text-xs text-sage-700 hover:underline font-medium">기본 비중 초기화</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left tabular-nums">
+                <thead>
+                  <tr class="border-b border-[#D5D0C5] text-muted">
+                    <th class="py-2">종목명</th>
+                    <th class="py-2">내 매수단가</th>
+                    <th class="py-2">보수적 주당청산가</th>
+                    <th class="py-2">종목 안전마진</th>
+                    <th class="py-2 w-36">포트폴리오 비중 (%)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[#EAE6DF]">
+                  <tr>
+                    <td class="py-2.5 font-semibold text-ink">태광산업 (003240)</td>
+                    <td class="py-2.5">635,000원</td>
+                    <td class="py-2.5 font-semibold text-sage-700">861,500원</td>
+                    <td class="py-2.5 text-sage-700 font-bold">+35.6%</td>
+                    <td class="py-2.5">
+                      <input type="number" data-pf-margin="35.6" class="pf-weight-input w-20 px-2 py-1 border border-[#D5D0C5] rounded bg-surface font-semibold" value="40" min="0" max="100" /> %
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 font-semibold text-ink">세아베스틸지주 (001430)</td>
+                    <td class="py-2.5">21,200원</td>
+                    <td class="py-2.5 font-semibold text-sage-700">27,400원</td>
+                    <td class="py-2.5 text-sage-700 font-bold">+29.2%</td>
+                    <td class="py-2.5">
+                      <input type="number" data-pf-margin="29.2" class="pf-weight-input w-20 px-2 py-1 border border-[#D5D0C5] rounded bg-surface font-semibold" value="35" min="0" max="100" /> %
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="py-2.5 font-semibold text-ink">현대홈쇼핑 (057050)</td>
+                    <td class="py-2.5">48,500원</td>
+                    <td class="py-2.5 font-semibold text-sage-700">68,900원</td>
+                    <td class="py-2.5 text-sage-700 font-bold">+42.0%</td>
+                    <td class="py-2.5">
+                      <input type="number" data-pf-margin="42.0" class="pf-weight-input w-20 px-2 py-1 border border-[#D5D0C5] rounded bg-surface font-semibold" value="25" min="0" max="100" /> %
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Simulation Output Summary Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 tabular-nums">
+            <div class="bg-[#F6F4EF] p-4 rounded-xl border border-[#E5E0D6]">
+              <div class="text-[11px] text-muted">잦은 매매로 누수된 거래비용 (세금+수수료)</div>
+              <div id="simFeeLeakageAmount" class="font-editorial text-xl font-bold text-crimson-700 mt-1">- 189만 원 (-3.78%p)</div>
+              <p class="text-[11px] text-muted mt-1">연 1회 장기보유 시 아낄 수 있는 비용</p>
+            </div>
+            <div class="bg-[#F6F4EF] p-4 rounded-xl border border-[#E5E0D6]">
+              <div class="text-[11px] text-muted">비용 차감 후 실질 순수익률 (세후)</div>
+              <div id="simNetReturnAmount" class="font-editorial text-xl font-bold text-ink mt-1">+10.72% (+536만 원)</div>
+              <p class="text-[11px] text-muted mt-1">명목 수익률 14.5% 대비 실질 수령액</p>
+            </div>
+            <div class="bg-sage-50 p-4 rounded-xl border border-sage-100">
+              <div class="text-[11px] text-sage-800 font-semibold">포트폴리오 가중평균 하방 안전마진</div>
+              <div id="simWeightedMargin" class="font-editorial text-xl font-bold text-sage-700 mt-1">+34.96% 확보</div>
+              <p class="text-[11px] text-sage-800 mt-1">보수적 청산가치 대비 원금 보호 여력</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right 5 Cols: Retention Defense Micro-Content & Quarterly Risk Diagnosis (기획서 3.2, 5장 Q5) -->
+        <div class="lg:col-span-5 bg-surface rounded-2xl border border-[#DFDBD2] p-6 shadow-sm flex flex-col justify-between space-y-4">
+          <div class="space-y-4">
+            <div class="border-b border-[#EAE6DF] pb-3">
+              <span class="text-xs font-bold uppercase tracking-wider text-bronze-700">리텐션(구독 유지) 방어 고도화 (기획서 3.2 · Q5)</span>
+              <h3 class="font-editorial text-xl font-bold text-ink mt-0.5">자산 보호 정기 리스크 진단 & 마이크로 알림</h3>
+              <p class="text-xs text-muted mt-1">
+                "가치투자는 매매를 자주 안 하는데 매월 결제할 이유가 있는가?" — 매매를 전혀 하지 않는 달에도 내 보유 종목의 청산가치 훼손 여부를 감시하는 <strong>든든한 자산 보험료(월 9,900원)</strong>로 기능합니다.
+              </p>
+            </div>
+
+            <!-- Alert Filter Pills -->
+            <div class="flex gap-1.5">
+              <button data-alert-filter="all" class="alert-filter-btn px-2.5 py-1 rounded text-xs font-semibold bg-ink text-white">전체 알림 (4)</button>
+              <button data-alert-filter="quarterly" class="alert-filter-btn px-2.5 py-1 rounded text-xs font-medium bg-warmgray text-ink">분기 청산가치 진단</button>
+              <button data-alert-filter="dividend" class="alert-filter-btn px-2.5 py-1 rounded text-xs font-medium bg-warmgray text-ink">배당락·수시공시</button>
+            </div>
+
+            <!-- Feed Items -->
+            <div class="space-y-2.5" id="retentionAlertFeed">
+              <div data-alert-type="quarterly" class="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E0D6] space-y-1">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="font-bold text-sage-700 px-2 py-0.5 rounded bg-sage-50 border border-sage-100">분기 정기 리스크 진단</span>
+                  <span class="text-muted tabular-nums">2026.11.11 업데이트</span>
+                </div>
+                <p class="text-xs font-bold text-ink pt-1">[태광산업] 3분기 보고서 주석 반영 완료 — 보수적 청산가치 훼손 없음</p>
+                <p class="text-[11px] text-muted leading-relaxed">
+                  당기 현금성자산 +410억 증가 및 주석 우발부채 변동 없음. NCAV 안전마진 기준선(+34.2%)이 견고하게 유지되고 있습니다.
+                </p>
+              </div>
+
+              <div data-alert-type="dividend" class="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E0D6] space-y-1">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="font-bold text-bronze-700 px-2 py-0.5 rounded bg-bronze-50 border border-bronze-100">배당락일 & 분기 배당 밀착 추적</span>
+                  <span class="text-muted tabular-nums">D-14 밀착 알림</span>
+                </div>
+                <p class="text-xs font-bold text-ink pt-1">[세아베스틸지주] 결산 배당 기준일 안내 및 FCF 대비 배당여력 점검</p>
+                <p class="text-[11px] text-muted leading-relaxed">
+                  최근 3개년 실질 FCF(890억) 대비 예상 배당총액 비중은 31.4%로, 차입 없이 현금흐름 내에서 안전하게 배당 지급이 가능한 수준입니다.
+                </p>
+              </div>
+
+              <div data-alert-type="dividend" class="p-3.5 rounded-xl bg-crimson-50/60 border border-crimson-100 space-y-1">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="font-bold text-crimson-700 px-2 py-0.5 rounded bg-white border border-crimson-100">수시 공시 & 가치평가지표 변동 알림</span>
+                  <span class="text-muted tabular-nums">컴플라이언스 표준 문구</span>
+                </div>
+                <p class="text-xs font-bold text-crimson-700 pt-1">[관심종목 예시] 전환사채(CB) 300억 발행 공시 — NCAV 기준치 미달 발생</p>
+                <p class="text-[11px] text-ink leading-relaxed">
+                  희석 가능 주식 수 및 부채 증가 반영 시 주당 보수적 청산가치가 현재가 대비 -8.4%로 하락하여 <strong>'NCAV 기준치 미달 발생'</strong> 상태로 전환되었습니다.
+                </p>
+              </div>
+
+              <div data-alert-type="quarterly" class="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E0D6] space-y-1">
+                <div class="flex items-center justify-between text-[11px]">
+                  <span class="font-bold text-ink px-2 py-0.5 rounded bg-warmgray">데이터 락인(Lock-in) 아카이브</span>
+                  <span class="text-muted tabular-nums">누적 6분기 기록 보관중</span>
+                </div>
+                <p class="text-xs font-bold text-ink pt-1">내 포트폴리오 히스토리컬 안전마진 궤적 자동 보존</p>
+                <p class="text-[11px] text-muted leading-relaxed">
+                  매 분기 공시 발표 시점마다 내 매수단가 대비 청산가치 추이가 누적 기록되어 타 플랫폼으로 이전하기 어려운 나만의 가치투자 원장을 형성합니다.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-[#EAE6DF] flex items-center justify-between">
+            <span class="text-xs text-muted">알림 수신 채널: 카카오톡 알림톡 · 웹 푸시</span>
+            <button id="testPushToastBtn" class="px-3 py-1.5 rounded-lg bg-ink text-white text-xs font-semibold hover:bg-sage-700 transition-colors">
+              🔔 샘플 리스크 진단 푸시 발송 테스트
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ==========================================
+         PAGE 4: 기업철학 · 컴플라이언스 · 중장기 로드맵 (기획안 1장, 5장, 6장)
+         ========================================== -->
+    <section id="view-philosophy" class="hidden space-y-6">
+
+      <!-- Why "1.5"? Brand Philosophy & Competitive Differentiation (Q7) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 bg-surface rounded-2xl border border-[#DFDBD2] p-6 shadow-sm space-y-4">
+          <span class="text-xs font-bold uppercase tracking-wider text-sage-700">설립 철학 및 네이밍의 의미 (기획서 1장)</span>
+          <h2 class="font-editorial text-2xl font-bold text-ink leading-snug">
+            왜 ‘1.5 (일점오)’인가?<br/>
+            <span class="text-sage-700 text-lg font-normal">1차 자료의 정확성과 2차 자료의 시인성, 그 사이의 해답</span>
+          </h2>
+          <div class="space-y-3 text-xs sm:text-sm text-muted leading-relaxed">
+            <div class="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E0D6]">
+              <strong class="text-ink block mb-0.5">1.0 (1차 자료: DART 원문 공시 · 사업보고서 주석)</strong>
+              가장 정확하고 왜곡이 없지만, 수백 페이지의 난해한 회계 주석과 표로 이루어져 있어 개인 투자자가 일일이 읽고 청산가치를 계산하기엔 장벽이 너무 높습니다.
+            </div>
+            <div class="p-3.5 rounded-xl bg-[#FAF9F6] border border-[#E5E0D6]">
+              <strong class="text-ink block mb-0.5">2.0 (2차 자료: 기존 포털 요약 · 단순 재무 서비스)</strong>
+              보기에 편하고 깔끔하지만, 주석에 숨겨진 우발부채·리스부채를 빼버리거나 단순 PER/PBR 숫자만 나열해 <em>"그래서 지금 내 원금이 안전한가?"</em>에 대한 답을 주지 못합니다.
+            </div>
+            <div class="p-4 rounded-xl bg-sage-50 border border-sage-100 text-ink">
+              <strong class="text-sage-800 block mb-1">1.5 (일점오: 정밀하고 친절한 보수적 가치평가)</strong>
+              1차 자료의 주석까지 파고드는 <strong>수학적 금융공학의 정밀함</strong>과, 비전문가도 단 3초 만에 하방 안전마진을 이해할 수 있는 <strong>압도적 시인성 및 친절한 UX</strong>를 결합한 새로운 기준선입니다.
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparison with Existing Major Services (기획서 Q7: 에프앤가이드, 버틀러 등과의 차별점) -->
+        <div class="lg:col-span-7 bg-surface rounded-2xl border border-[#DFDBD2] p-6 shadow-sm space-y-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-sage-700">경쟁 우위 분석 (기획서 5장 Q7)</span>
+            <h3 class="font-editorial text-xl font-bold text-ink mt-0.5">기존 대형 금융정보 서비스 vs 1.5 (일점오) 결정적 차별점</h3>
+            <p class="text-xs text-muted mt-1">
+              기존 서비스들은 공시 숫자를 나열할 뿐 해석은 투자자 몫으로 남겨둡니다. 1.5는 명확한 보수적 방향성을 갖고 수학적으로 안전 기준선을 계산해 줍니다.
+            </p>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr class="border-b-2 border-ink text-ink">
+                  <th class="py-2.5 pr-3">비교 영역</th>
+                  <th class="py-2.5 px-3 text-muted">포털 금융 요약 (네이버 등)</th>
+                  <th class="py-2.5 px-3 text-muted">기존 대형 서비스 (에프앤가이드·버틀러 등)</th>
+                  <th class="py-2.5 pl-3 text-sage-800 bg-sage-50/70 font-bold rounded-t-lg">1.5 (일점오) 가치평가</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-[#EAE6DF]">
+                <tr>
+                  <td class="py-3 pr-3 font-semibold">핵심 질문 해결</td>
+                  <td class="py-3 px-3 text-muted">단순 시세·뉴스 확인</td>
+                  <td class="py-3 px-3 text-muted">공시 숫자의 깔끔한 시각화 (해석은 각자 몫)</td>
+                  <td class="py-3 pl-3 bg-sage-50/50 font-semibold text-ink">"그래서 지금 이 주식이 하방으로 안전한가?"에 수학적 해답 제시</td>
+                </tr>
+                <tr>
+                  <td class="py-3 pr-3 font-semibold">청산가치 산출</td>
+                  <td class="py-3 px-3 text-muted">단순 PBR (장부가 그대로 믿음)</td>
+                  <td class="py-3 px-3 text-muted">표준 재무비율 나열</td>
+                  <td class="py-3 pl-3 bg-sage-50/50 font-semibold text-sage-800">현금 100%·채권 75%·재고 50% 차등 + 주석 우발부채 100% 차감</td>
+                </tr>
+                <tr>
+                  <td class="py-3 pr-3 font-semibold">비전문가 친절도</td>
+                  <td class="py-3 px-3 text-muted">깊이가 얕아 판단 불가</td>
+                  <td class="py-3 px-3 text-muted">전문 용어 위주 (초보자 진입장벽 높음)</td>
+                  <td class="py-3 pl-3 bg-sage-50/50 font-semibold text-ink">2단계 UI (일상어 한 줄 결론 + 원클릭 전문가 심층 차트 확장)</td>
+                </tr>
+                <tr>
+                  <td class="py-3 pr-3 font-semibold">가격 접근성</td>
+                  <td class="py-3 px-3 text-muted">무료 (광고·커뮤니티 노이즈 과다)</td>
+                  <td class="py-3 px-3 text-muted">월 수만 원~수십만 원대 고가 단말기/구독</td>
+                  <td class="py-3 pl-3 bg-sage-50/50 font-bold text-sage-700">월 9,900원 대중 단일 요금제 (커피 두 잔 값의 자산 보험)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Compliance & Anti-Scraping Guardrails (기획서 5장 Q1, Q2) -->
+          <div class="bg-[#FAF9F6] p-4 rounded-xl border border-[#E5E0D6] grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3">
+            <div class="space-y-1">
+              <div class="text-xs font-bold text-ink">⚖️ 자본시장법 컴플라이언스 (불법 자문 방어)</div>
+              <p class="text-[11px] text-muted leading-relaxed">
+                "강력 매수", "과열 위험 조기 경보" 등 투자 심리에 개입할 소지가 있는 자극적 마케팅 용어를 전면 배제하고, <strong>"NCAV 기준치 미달 발생"</strong>, <strong>"보수적 청산가치 대비 +34.2%"</strong> 등 객관적 수치 사실만 전달합니다.
+              </p>
+            </div>
+            <div class="space-y-1">
+              <div class="text-xs font-bold text-ink">🛡️ 경쟁사 도용 방어 & 서버사이드 마스킹</div>
+              <p class="text-[11px] text-muted leading-relaxed">
+                핵심 연산 결과(1.5 지수 등)는 프론트엔드 CSS 숨김에 그치지 않고 <strong>서버 사이드(API) 단에서 마스킹</strong> 처리하며, AI 기반 비정상 스크래핑 탐지 및 포트폴리오 데이터 락인으로 보호합니다.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mid-to-Long Term Roadmap & Continuous Algorithm Tuning (기획서 6장 전체) -->
+      <div class="bg-surface rounded-2xl border border-[#DFDBD2] p-6 shadow-sm space-y-5">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-sage-700">미래 확장성 및 중장기 로드맵 (기획서 6장)</span>
+          <h3 class="font-editorial text-xl font-bold text-ink mt-0.5">단계별 확장 계획 & 알고리즘·비용 최적화 필수 과제</h3>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="p-4 rounded-xl bg-sage-50 border-2 border-sage-600 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-sage-800">Phase 1 (현재 런칭)</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-sage-700 text-white font-semibold">진행 중</span>
+            </div>
+            <h4 class="font-bold text-sm text-ink">국내 가치주 린(Lean) 런칭</h4>
+            <p class="text-xs text-muted leading-relaxed">
+              국내 KOSPI/KOSDAQ 전통 가치주·자산주 한정, DART 주석 기반 청산가치 및 3개년 FCF 스크리너 집중 검증 (초기 BEP 500명 달성)
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[#FAF9F6] border border-[#E5E0D6] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-ink">Phase 1.5</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-warmgray text-muted font-medium">수익 안정화 시점</span>
+            </div>
+            <h4 class="font-bold text-sm text-ink">미국 주식 & 리포트 NLP 도입</h4>
+            <p class="text-xs text-muted leading-relaxed">
+              심층 유저를 겨냥한 미국 주식(SEC EDGAR 10-K 주석) 확장 및 애널리스트 리포트 NLP 감성·맥락 분석 정식 도입
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[#FAF9F6] border border-[#E5E0D6] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-ink">Phase 2</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-warmgray text-muted font-medium">플랫폼 고도화</span>
+            </div>
+            <h4 class="font-bold text-sm text-ink">네이티브 앱 & 거시경제 결합</h4>
+            <p class="text-xs text-muted leading-relaxed">
+              반응형 웹(PWA)에서 정식 네이티브 앱 런칭으로 고객 락인(Lock-in) 강화 및 금리·인플레이션 등 거시경제 지표 가중치 결합
+            </p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-[#FAF9F6] border border-[#E5E0D6] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-ink">Phase 3</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-warmgray text-muted font-medium">B2B 스케일업</span>
+            </div>
+            <h4 class="font-bold text-sm text-ink">기관용 B2B 데이터 API 공급</h4>
+            <p class="text-xs text-muted leading-relaxed">
+              축적된 주석 정형화 DB와 1.5 지수를 기반으로 자산운용사·자문사 대상 B2B API 패키지 공급으로 수익 상방 무한 개방
+            </p>
+          </div>
+        </div>
+
+        <!-- 3 Essential Improvement Tasks from Section 6 Conclusion -->
+        <div class="bg-[#F6F4EF] rounded-xl p-4 border border-[#E5E0D6] grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+          <div>
+            <strong class="text-ink block mb-1">① 초기 구독자 확보 GTM & CAC 구체화</strong>
+            <span class="text-muted leading-relaxed">불특정 매스 마케팅을 배제하고 30~50대 손실 방어 성향 투자자 타깃 광고, 가치투자 커뮤니티 제휴, 종목별 청산가치 SEO로 1단계 BEP(500명) 조기 달성.</span>
+          </div>
+          <div>
+            <strong class="text-ink block mb-1">② 실적 시즌 트래픽·LLM 비용 캐싱 방어</strong>
+            <span class="text-muted leading-relaxed">분기 공시 집중 시즌에 LLM API 호출 비용이 폭증하지 않도록 주석 문단 해시 캐싱 및 증분 배치(Delta EOD Batch) 최적화를 아키텍처에 기본 내장.</span>
+          </div>
+          <div>
+            <strong class="text-ink block mb-1">③ 1.5 알고리즘 지속 백테스트 튜닝</strong>
+            <span class="text-muted leading-relaxed">시장 환경과 금리 변화에 맞춰 자산별 할인 가중치와 안전마진 공식을 지속 백테스트하여 알고리즘의 기술적 합리성을 상시 증명.</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ==========================================
+       LOGIN & PRO MODE (월 9,900원) CONVERSION MODAL
+       ========================================== -->
+  <div id="proConversionModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="bg-surface rounded-2xl border border-[#DFDBD2] max-w-lg w-full overflow-hidden shadow-2xl animate-fadeIn">
+      <!-- Modal Top Header -->
+      <div class="bg-[#181816] text-white p-6 relative">
+        <button id="closeProModalBtn" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-[#2E2D2A] text-[#C7C3B8] hover:text-white flex items-center justify-center text-sm">
+          ✕
+        </button>
+        <span class="text-[11px] font-semibold px-2.5 py-0.5 rounded bg-sage-600 text-white">1.5 PRO 멤버십 안내</span>
+        <h3 class="font-editorial text-2xl font-bold mt-2">
+          투자의 결정적 승부처,<br/>블러 뒤의 안전 기준선을 확인하세요
+        </h3>
+        <p class="text-xs text-[#C7C3B8] mt-1.5 leading-relaxed">
+          상위 10대 종목의 기본 청산가치는 무료로 제공되지만, <strong>1.5 종합 지수(비대칭 손익비)</strong>, <strong>산업 생태계 건전성</strong>, <strong>전망-수급 괴리 지수</strong>는 PRO 회원에게만 공개됩니다.
+        </p>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-5">
+        <!-- Pricing Highlight Box -->
+        <div class="bg-sage-50 border border-sage-100 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <div class="text-xs font-bold text-sage-800">단일 대중 요금제 (내 자산을 지키는 최소한의 보험료)</div>
+            <div class="text-[11px] text-muted mt-0.5">전 종목 4대 핵심 지표 무제한 열람 + 분기 리스크 진단 알림</div>
+          </div>
+          <div class="text-right tabular-nums">
+            <span class="font-editorial text-2xl font-bold text-sage-700">월 9,900원</span>
+            <span class="block text-[10px] text-muted">언제든 해지 가능</span>
+          </div>
+        </div>
+
+        <!-- Quick Login Form -->
+        <form id="proLoginForm" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-ink mb-1" for="loginEmailInput">이메일 아이디로 3초 시작하기</label>
+            <input id="loginEmailInput" type="email" required placeholder="investor@onepointfive.kr" value="value_investor@onepointfive.kr" class="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-[#F6F4EF] border border-[#D5D0C5] rounded-lg focus:outline-none focus:border-sage-700" />
+          </div>
+          <button type="submit" class="w-full py-3 rounded-xl bg-sage-700 hover:bg-sage-800 text-white font-bold text-sm transition-colors shadow-sm">
+            로그인 및 월 9,900원 PRO 모드 즉시 시작하기 (블러 전체 해제)
+          </button>
+        </form>
+
+        <div class="text-center">
+          <button id="continueFreeBtn" class="text-xs text-muted hover:text-ink underline">
+            일단 무료 모드로 계속 둘러보기
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="appToast" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-[#181816] text-white px-4 py-3 rounded-xl shadow-lg border border-[#33322E] text-xs flex items-center gap-3">
+    <span class="w-2 h-2 rounded-full bg-[#4E9F76] shrink-0"></span>
+    <span id="appToastMessage">알림 메시지</span>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-[#EFECE6] border-t border-[#DFDBD2] mt-12 py-6 text-xs text-muted">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="font-editorial font-bold text-ink">1.5 (일점오)</span>
+        <span>— 보수적 가치평가 데이터금융 서비스</span>
+      </div>
+      <p class="text-[11px] text-center sm:text-right">
+        본 서비스는 자본시장법상 투자자문이나 리딩을 제공하지 않으며, DART 공시 주석 및 KRX 데이터에 기반한 객관적 수치 연산 도구입니다.
+      </p>
+    </div>
+  </footer>
+
+  <!-- Application Logic & Grounded Data Script -->
+  <script>
+    // 1. Grounded Stock Dataset (Aligned with 1.5 Business Plan)
+    const STOCKS_DATA = {
+      '003240': {
+        code: '003240',
+        name: '태광산업',
+        sector: 'KOSPI · 석유화학/섬유 전통 자산주',
+        isIntangibleWarning: false,
+        qaStatus: '✓ DART 사업보고서 주석 29번 파싱 · 휴먼 샘플링 QA 완료',
+        currentPrice: '642,000원',
+        marketCap: '7,148억 원',
+        complianceBadge: 'NCAV 보수적 기준치 상회 (+34.2%)',
+        badgeType: 'pass',
+        friendlySummary: '회사가 가진 현금은 100%, 받을 외상값(매출채권)은 75%, 창고 재고는 절반(50%)만 쳐서 <strong>주석 속 숨은 우발부채까지 모두 갚아도 9,593억 원</strong>이 남습니다. 현재 시가총액(7,148억 원)보다 청산가치가 높아 하방 안전마진이 확보된 구간입니다.',
+        ncavRatioText: '134.2% (안전 기준선 100% 통과)',
+        ncavProgressWidth: 86,
+        discountedAssets: '1조 8,420억 원',
+        totalLiabilities: '- 7,915억 원',
+        footnoteLiabilities: '- 912억 원',
+        finalNcav: '9,593억 원',
+        perShareNcav: '861,500원 / 주',
+        index15: '1.84',
+        downsidePercentile: '상위 4.2% (하방 경직성 확보)',
+        asymmetricRatio: '1 : 3.15',
+        backtestWinRate: '82.4% (KOSPI 대비 +19.8%p)',
+        pillar1Status: '기준 통과',
+        pillar1Value: '+34.2%',
+        pillar1Desc: '하위 25% 보수적 기준 적용: 현금 100%, 매출채권 75%, 재고 50%만 인정하고 주석 내 우발·리스부채(912억)를 100% 차감한 순청산가치입니다.',
+        pillar1Sub: '유동자산 대비 4.9% 차감',
+        pillar2Status: '3년 연속 흑자',
+        pillar2Value: '+1,185억 원',
+        pillar2Desc: '회계상 영업이익의 착시를 방어하기 위해, 실제 영업활동현금흐름에서 공장 유지 등 필수 설비투자금(CAPEX)을 뺀 3년 치 잉여현금흐름을 추적합니다.',
+        pillar2Sub: '시총 대비 연 16.5% 현금 창출력',
+        pillar3Value: '0.74 (건전)',
+        pillar3Sub: '산업 내 자본분배 상위 18% · 낙수효과 유입',
+        pillar4Value: '-12.4% (소외 매집)',
+        pillar4Sub: '리포트 과열 없음 / 기관 20일 +142억 순매수',
+        footnoteExcerpt: '"주석 29. 우발채무 및 약정사항: 당기말 현재 계열사 및 협력사 관련 채무보증 약정 한도액 540억 원 및 진행 중인 계류소송 소가 182억 원, 미인식 리스 약정 190억 원을 보수적 부채로 100% 차감 반영함."',
+        footnoteTable: [
+          { item: '현금 및 단기금융상품', raw: '1조 3,100억', weight: '100%', recognized: '1조 3,100억', type: 'asset' },
+          { item: '매출채권 및 기타채권', raw: '4,160억', weight: '75%', recognized: '3,120억', type: 'asset' },
+          { item: '재고자산 (원재료·제품)', raw: '4,400억', weight: '50%', recognized: '2,200억', type: 'asset' },
+          { item: '무형자산 (영업권·개발비)', raw: '380억', weight: '0% (전액제외)', recognized: '0원', type: 'asset' },
+          { item: '재무상태표 총부채', raw: '- 7,915억', weight: '100% 차감', recognized: '- 7,915억', type: 'liability' },
+          { item: '[주석 29] 우발채무·소송·미인식리스', raw: '- 912억', weight: '100% 추가차감', recognized: '- 912억', type: 'footnote' }
+        ],
+        charts: {
+          ncavBand: {
+            labels: ['2022.4Q', '2023.2Q', '2023.4Q', '2024.2Q', '2024.4Q', '2025.2Q', '2025.4Q', '2026.3Q(EOD)'],
+            stockPrice: [710, 680, 620, 655, 590, 615, 630, 642],
+            ncavLine: [810, 825, 830, 840, 845, 850, 855, 861.5],
+            kospiRel: [100, 104, 108, 114, 118, 121, 123, 124.6]
+          },
+          fcfComparison: {
+            labels: ['2024년 결산', '2025년 결산', '2026년 (TTM)'],
+            accountingOp: [940, 1080, 1120],
+            realFcf: [1050, 1210, 1295]
+          },
+          divergence: {
+            labels: ['8주 전', '7주 전', '6주 전', '5주 전', '4주 전', '3주 전', '2주 전', '금주(EOD)'],
+            reportOptimism: [15, 14, 12, 12, 10, 11, 9, 8],
+            instNetBuy: [12, 28, 45, 64, 88, 105, 124, 142]
+          }
+        }
+      },
+      '001430': {
+        code: '001430',
+        name: '세아베스틸지주',
+        sector: 'KOSPI · 특수강/지주 전통 가치주',
+        isIntangibleWarning: false,
+        qaStatus: '✓ DART 연결감사보고서 주석 31번 파싱 · 휴먼 샘플링 QA 완료',
+        currentPrice: '21,450원',
+        marketCap: '7,692억 원',
+        complianceBadge: 'NCAV 보수적 기준치 상회 (+27.7%)',
+        badgeType: 'pass',
+        friendlySummary: '자회사 보유 현금(100%)과 특수강 매출채권(75%), 재고자산(50%)을 보수적으로 합산하고 <strong>주석 내 자회사 지급보증 및 리스부채(640억)를 차감해도 9,824억 원</strong>의 순청산가치가 산출됩니다.',
+        ncavRatioText: '127.7% (안전 기준선 100% 통과)',
+        ncavProgressWidth: 80,
+        discountedAssets: '1조 9,680억 원',
+        totalLiabilities: '- 9,216억 원',
+        footnoteLiabilities: '- 640억 원',
+        finalNcav: '9,824억 원',
+        perShareNcav: '27,400원 / 주',
+        index15: '1.72',
+        downsidePercentile: '상위 7.8% (하방 경직성 확보)',
+        asymmetricRatio: '1 : 2.85',
+        backtestWinRate: '79.1% (KOSPI 대비 +16.4%p)',
+        pillar1Status: '기준 통과',
+        pillar1Value: '+27.7%',
+        pillar1Desc: '현금 100%, 매출채권 75%, 재고 50% 인정 후 연결 주석 내 우발채무 및 환경복구충당 약정(640억)을 전액 차감한 보수적 안전마진입니다.',
+        pillar1Sub: '유동자산 대비 3.3% 차감',
+        pillar2Status: '3년 연속 흑자',
+        pillar2Value: '+890억 원',
+        pillar2Desc: '철강 업황 변동에도 불구하고 필수 설비 유지보수(CAPEX)를 차감한 실질 잉여현금흐름이 3년 연속 플러스(+)를 유지하고 있습니다.',
+        pillar2Sub: '시총 대비 연 11.5% 현금 창출력',
+        pillar3Value: '0.68 (양호)',
+        pillar3Sub: '특수강·방산 생태계 자본 분배율 양호',
+        pillar4Value: '-8.2% (수급 유입)',
+        pillar4Sub: '보고서 중립 대비 기관·외인 20일 +98억 순매수',
+        footnoteExcerpt: '"주석 31. 우발부채 및 약정사항: 연결실체의 계열사 설비투자 관련 보증약정 410억 원 및 운용리스 미인식 의무액 230억 원을 보수적 청산가치 산출 시 부채에 합산하여 차감함."',
+        footnoteTable: [
+          { item: '현금 및 단기금융상품', raw: '9,450억', weight: '100%', recognized: '9,450억', type: 'asset' },
+          { item: '매출채권 (특수강·단조)', raw: '7,640억', weight: '75%', recognized: '5,730억', type: 'asset' },
+          { item: '재고자산 (원재료·반제품)', raw: '9,000억', weight: '50%', recognized: '4,500억', type: 'asset' },
+          { item: '무형자산', raw: '610억', weight: '0% (전액제외)', recognized: '0원', type: 'asset' },
+          { item: '재무상태표 총부채', raw: '- 9,216억', weight: '100% 차감', recognized: '- 9,216억', type: 'liability' },
+          { item: '[주석 31] 보증약정·리스부채', raw: '- 640억', weight: '100% 추가차감', recognized: '- 640억', type: 'footnote' }
+        ],
+        charts: {
+          ncavBand: {
+            labels: ['2022.4Q', '2023.2Q', '2023.4Q', '2024.2Q', '2024.4Q', '2025.2Q', '2025.4Q', '2026.3Q(EOD)'],
+            stockPrice: [19.5, 22.1, 20.8, 23.0, 19.8, 20.5, 21.0, 21.45],
+            ncavLine: [24.8, 25.2, 25.6, 26.0, 26.5, 26.9, 27.1, 27.4],
+            kospiRel: [100, 103, 106, 111, 113, 116, 118, 119.5]
+          },
+          fcfComparison: {
+            labels: ['2024년 결산', '2025년 결산', '2026년 (TTM)'],
+            accountingOp: [1150, 1020, 1080],
+            realFcf: [820, 895, 955]
+          },
+          divergence: {
+            labels: ['8주 전', '7주 전', '6주 전', '5주 전', '4주 전', '3주 전', '2주 전', '금주(EOD)'],
+            reportOptimism: [22, 20, 19, 18, 16, 15, 14, 14],
+            instNetBuy: [5, 18, 30, 42, 55, 71, 84, 98]
+          }
+        }
+      },
+      '057050': {
+        code: '057050',
+        name: '현대홈쇼핑',
+        sector: 'KOSPI · 유통/현금성 자산 가치주',
+        isIntangibleWarning: false,
+        qaStatus: '✓ DART 분기보고서 주석 25번 파싱 · 휴먼 샘플링 QA 완료',
+        currentPrice: '48,200원',
+        marketCap: '5,784억 원',
+        complianceBadge: 'NCAV 보수적 기준치 상회 (+42.9%)',
+        badgeType: 'pass',
+        friendlySummary: '홈쇼핑 사업 특성상 재고 부담이 적고 현금성 자산이 풍부합니다. <strong>주석 내 협력사 동반성장 협약 보증 및 리스부채(390억)를 모두 빼고도 순청산가치가 8,268억 원</strong>에 달해 시가총액을 크게 웃돕니다.',
+        ncavRatioText: '142.9% (안전 기준선 100% 통과)',
+        ncavProgressWidth: 92,
+        discountedAssets: '1조 3,520억 원',
+        totalLiabilities: '- 4,862억 원',
+        footnoteLiabilities: '- 390억 원',
+        finalNcav: '8,268억 원',
+        perShareNcav: '68,900원 / 주',
+        index15: '1.91',
+        downsidePercentile: '상위 2.5% (최상위 안전마진)',
+        asymmetricRatio: '1 : 3.48',
+        backtestWinRate: '85.0% (KOSPI 대비 +22.1%p)',
+        pillar1Status: '기준 통과',
+        pillar1Value: '+42.9%',
+        pillar1Desc: '보유 현금 비중이 압도적으로 높아 100% 인정 자산 비율이 높으며, 주석 우발부채(390억)를 차감해도 시총 대비 +42.9%의 여유가 있습니다.',
+        pillar1Sub: '유동자산 대비 2.8% 차감',
+        pillar2Status: '3년 연속 흑자',
+        pillar2Value: '+1,040억 원',
+        pillar2Desc: '대규모 공장 설비투자(CAPEX)가 필요 없는 구조로, 영업활동현금흐름의 대부분이 고스란히 실질 잉여현금흐름(FCF)으로 축적됩니다.',
+        pillar2Sub: '시총 대비 연 17.9% 현금 창출력',
+        pillar3Value: '0.62 (안정)',
+        pillar3Sub: '협력사 정산 현금흐름 건전성 상위권',
+        pillar4Value: '-15.1% (저평가 매집)',
+        pillar4Sub: '시장 무관심 속 외국인·기관 20일 +115억 순매수',
+        footnoteExcerpt: '"주석 25. 우발부채 및 약정사항: 중소협력사 대출지원 약정 관련 우발채무 240억 원 및 방송장비·물류창고 미인식 리스 약정 150억 원을 보수적 부채로 전액 반영함."',
+        footnoteTable: [
+          { item: '현금 및 단기금융상품', raw: '1조 1,200억', weight: '100%', recognized: '1조 1,200억', type: 'asset' },
+          { item: '매출채권 및 수취채권', raw: '2,400억', weight: '75%', recognized: '1,800억', type: 'asset' },
+          { item: '재고자산', raw: '1,040억', weight: '50%', recognized: '520억', type: 'asset' },
+          { item: '무형자산 (방송권·소프트웨어)', raw: '490억', weight: '0% (전액제외)', recognized: '0원', type: 'asset' },
+          { item: '재무상태표 총부채', raw: '- 4,862억', weight: '100% 차감', recognized: '- 4,862억', type: 'liability' },
+          { item: '[주석 25] 협력사보증·물류리스', raw: '- 390억', weight: '100% 추가차감', recognized: '- 390억', type: 'footnote' }
+        ],
+        charts: {
+          ncavBand: {
+            labels: ['2022.4Q', '2023.2Q', '2023.4Q', '2024.2Q', '2024.4Q', '2025.2Q', '2025.4Q', '2026.3Q(EOD)'],
+            stockPrice: [52.0, 49.5, 46.8, 47.2, 45.9, 46.5, 47.8, 48.2],
+            ncavLine: [63.5, 64.2, 65.0, 66.1, 66.8, 67.5, 68.2, 68.9],
+            kospiRel: [100, 105, 109, 115, 120, 124, 126, 128.4]
+          },
+          fcfComparison: {
+            labels: ['2024년 결산', '2025년 결산', '2026년 (TTM)'],
+            accountingOp: [880, 960, 1010],
+            realFcf: [970, 1050, 1100]
+          },
+          divergence: {
+            labels: ['8주 전', '7주 전', '6주 전', '5주 전', '4주 전', '3주 전', '2주 전', '금주(EOD)'],
+            reportOptimism: [11, 10, 10, 9, 8, 8, 7, 7],
+            instNetBuy: [10, 24, 38, 52, 68, 82, 99, 115]
+          }
+        }
+      },
+      '029530': {
+        code: '029530',
+        name: '신도리코',
+        sector: 'KOSPI · 오피스솔루션/무차입 현금자산주',
+        isIntangibleWarning: false,
+        qaStatus: '✓ DART 사업보고서 주석 22번 파싱 · 휴먼 샘플링 QA 완료',
+        currentPrice: '37,800원',
+        marketCap: '3,810억 원',
+        complianceBadge: 'NCAV 보수적 기준치 상회 (+38.5%)',
+        badgeType: 'pass',
+        friendlySummary: '실질적인 무차입 경영 기조로 보유 현금성 자산만으로도 시가총액을 상회합니다. <strong>주석 내 해외 종속법인 약정 및 리스부채(185억)를 100% 차감한 순청산가치가 5,277억 원</strong>으로 강력한 하방 지지선을 형성하고 있습니다.',
+        ncavRatioText: '138.5% (안전 기준선 100% 통과)',
+        ncavProgressWidth: 89,
+        discountedAssets: '6,480억 원',
+        totalLiabilities: '- 1,018억 원',
+        footnoteLiabilities: '- 185억 원',
+        finalNcav: '5,277억 원',
+        perShareNcav: '52,350원 / 주',
+        index15: '1.80',
+        downsidePercentile: '상위 5.1% (하방 경직성 확보)',
+        asymmetricRatio: '1 : 3.05',
+        backtestWinRate: '81.2% (KOSPI 대비 +18.2%p)',
+        pillar1Status: '기준 통과',
+        pillar1Value: '+38.5%',
+        pillar1Desc: '부채비율이 극히 낮고 현금 비중이 높아, 매출채권(75%)과 재고자산(50%)을 엄격히 할인해도 시가총액 대비 +38.5%의 청산가치 여유가 존재합니다.',
+        pillar1Sub: '유동자산 대비 2.9% 차감',
+        pillar2Status: '3년 연속 흑자',
+        pillar2Value: '+465억 원',
+        pillar2Desc: '안정적인 소모품·유지보수 현금흐름을 바탕으로 3년 연속 잉여현금흐름(FCF) 흑자를 기록하며 현금성 자산을 꾸준히 쌓고 있습니다.',
+        pillar2Sub: '시총 대비 연 12.2% 현금 창출력',
+        pillar3Value: '0.65 (안정)',
+        pillar3Sub: 'B2B 사무기기 임대 생태계 현금 회수율 우수',
+        pillar4Value: '-9.8% (저변동 매집)',
+        pillar4Sub: '증권사 커버리지 부재 속 기관 꾸준히 순매수',
+        footnoteExcerpt: '"주석 22. 우발채무 및 약정사항: 베트남 및 중국 현지법인 통관·이행보증 약정 120억 원과 영업점 리스 미인식 약정 65억 원을 보수적 부채로 차감 반영함."',
+        footnoteTable: [
+          { item: '현금 및 단기금융상품', raw: '5,420억', weight: '100%', recognized: '5,420억', type: 'asset' },
+          { item: '매출채권 및 리스채권', raw: '880억', weight: '75%', recognized: '660억', type: 'asset' },
+          { item: '재고자산', raw: '800억', weight: '50%', recognized: '400억', type: 'asset' },
+          { item: '무형자산', raw: '95억', weight: '0% (전액제외)', recognized: '0원', type: 'asset' },
+          { item: '재무상태표 총부채', raw: '- 1,018억', weight: '100% 차감', recognized: '- 1,018억', type: 'liability' },
+          { item: '[주석 22] 해외법인보증·리스약정', raw: '- 185억', weight: '100% 추가차감', recognized: '- 185억', type: 'footnote' }
+        ],
+        charts: {
+          ncavBand: {
+            labels: ['2022.4Q', '2023.2Q', '2023.4Q', '2024.2Q', '2024.4Q', '2025.2Q', '2025.4Q', '2026.3Q(EOD)'],
+            stockPrice: [34.0, 35.2, 34.8, 36.0, 35.5, 36.4, 37.1, 37.8],
+            ncavLine: [47.5, 48.2, 49.0, 49.8, 50.5, 51.2, 51.8, 52.35],
+            kospiRel: [100, 102, 106, 110, 114, 117, 119, 121.0]
+          },
+          fcfComparison: {
+            labels: ['2024년 결산', '2025년 결산', '2026년 (TTM)'],
+            accountingOp: [410, 445, 470],
+            realFcf: [435, 460, 500]
+          },
+          divergence: {
+            labels: ['8주 전', '7주 전', '6주 전', '5주 전', '4주 전', '3주 전', '2주 전', '금주(EOD)'],
+            reportOptimism: [5, 5, 5, 5, 4, 4, 4, 4],
+            instNetBuy: [4, 9, 15, 22, 29, 36, 44, 52]
+          }
+        }
+      },
+      '990010': {
+        code: '990010',
+        name: '에코바이오플랫폼 (섹터 대조용)',
+        sector: 'KOSDAQ · 무형자산/바이오 (NCAV 부적합 섹터 예시)',
+        isIntangibleWarning: true,
+        qaStatus: '✓ DART 사업보고서 주석 파싱 완료 · 무형자산 비중 고지 대상',
+        currentPrice: '44,500원',
+        marketCap: '8,900억 원',
+        complianceBadge: 'NCAV 기준치 미달 발생 (-81.2%)',
+        badgeType: 'warn',
+        friendlySummary: '기획서 2.2항 안내: 본 기업은 자산의 대부분이 신약 개발비·영업권 등 무형자산으로 구성된 바이오/플랫폼 기업입니다. 보수적 청산가치(무형자산 0원 처리, 주석 전환사채·우발부채 100% 차감) 기준에서는 <strong>순청산가치가 시가총액의 18.8% 수준에 불과해 기준치 미달</strong>로 분류됩니다.',
+        ncavRatioText: '18.8% (NCAV 안전 기준선 미달)',
+        ncavProgressWidth: 19,
+        discountedAssets: '3,120억 원',
+        totalLiabilities: '- 980억 원',
+        footnoteLiabilities: '- 465억 원',
+        finalNcav: '1,675억 원',
+        perShareNcav: '8,375원 / 주',
+        index15: '0.42',
+        downsidePercentile: '하위 84.0% (하방 지지력 취약)',
+        asymmetricRatio: '1 : 0.55',
+        backtestWinRate: '38.5% (보수적 가치주 기준 부적합)',
+        pillar1Status: '기준 미달',
+        pillar1Value: '-81.2%',
+        pillar1Desc: '무형자산(개발비 4,200억)을 보수적 원칙에 따라 0원으로 제외하고 주석 내 전환사채(CB) 조기상환청구권 부채를 차감한 결과 기준치에 미달합니다.',
+        pillar1Sub: '무형자산 제외 및 CB 주석 차감',
+        pillar2Status: 'FCF 적자 지속',
+        pillar2Value: '-340억 원',
+        pillar2Desc: '회계상 기술이전 일회성 이익이 있었으나, 경상 연구개발 및 임상 투자 지출로 인해 3개년 평균 실질 잉여현금흐름은 마이너스(-) 상태입니다.',
+        pillar2Sub: '현금 소진(Cash Burn) 구간',
+        pillar3Value: '0.31 (편중)',
+        pillar3Sub: '소수 바이오 대형주 쏠림 · 자본분배 불균형',
+        pillar4Value: '+68.5% (낙관 과열 주의)',
+        pillar4Sub: '증권사 장밋빛 리포트 집중 vs 기관 20일 -310억 순매도',
+        footnoteExcerpt: '"주석 18. 전환사채 및 우발부채: 제4회차 사모 전환사채 풋옵션(조기상환청구권) 행사가능액 380억 원 및 임상 용역 위약금 약정 85억 원을 보수적 부채로 차감함."',
+        footnoteTable: [
+          { item: '현금 및 단기금융상품', raw: '2,650억', weight: '100%', recognized: '2,650억', type: 'asset' },
+          { item: '매출채권', raw: '440억', weight: '75%', recognized: '330억', type: 'asset' },
+          { item: '재고자산', raw: '280억', weight: '50%', recognized: '140억', type: 'asset' },
+          { item: '무형자산 (신약개발비·영업권)', raw: '4,200억', weight: '0% (전액제외)', recognized: '0원', type: 'asset' },
+          { item: '재무상태표 총부채', raw: '- 980억', weight: '100% 차감', recognized: '- 980억', type: 'liability' },
+          { item: '[주석 18] CB 풋옵션·임상약정', raw: '- 465억', weight: '100% 추가차감', recognized: '- 465억', type: 'footnote' }
+        ],
+        charts: {
+          ncavBand: {
+            labels: ['2022.4Q', '2023.2Q', '2023.4Q', '2024.2Q', '2024.4Q', '2025.2Q', '2025.4Q', '2026.3Q(EOD)'],
+            stockPrice: [62.0, 58.0, 71.0, 64.0, 52.0, 49.0, 46.0, 44.5],
+            ncavLine: [11.2, 10.8, 10.1, 9.6, 9.2, 8.9, 8.6, 8.37],
+            kospiRel: [100, 94, 108, 96, 82, 78, 74, 71.2]
+          },
+          fcfComparison: {
+            labels: ['2024년 결산', '2025년 결산', '2026년 (TTM)'],
+            accountingOp: [120, -80, 95],
+            realFcf: [-290, -380, -350]
+          },
+          divergence: {
+            labels: ['8주 전', '7주 전', '6주 전', '5주 전', '4주 전', '3주 전', '2주 전', '금주(EOD)'],
+            reportOptimism: [72, 75, 78, 82, 85, 88, 90, 92],
+            instNetBuy: [-20, -55, -90, -140, -185, -230, -275, -310]
+          }
+        }
+      }
+    };
+
+    // 2. Application State
+    const state = {
+      activeTab: 'valuation',
+      selectedStockCode: '003240',
+      isProUnlocked: false,
+      isDeepModeOpen: true,
+      activeDeepChartMode: 'ncavBand',
+      activePipelineStage: 1
+    };
+
+    let deepChartInstance = null;
+
+    // 3. Helper: Show Toast
+    function showToast(message) {
+      const toast = document.getElementById('appToast');
+      const msgEl = document.getElementById('appToastMessage');
+      msgEl.textContent = message;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 3600);
+    }
+
+    // 4. Render Stock Selector Buttons
+    function renderStockSelector() {
+      const container = document.getElementById('stockSelectorGroup');
+      container.innerHTML = '';
+      Object.values(STOCKS_DATA).forEach((stock) => {
+        const isSelected = stock.code === state.selectedStockCode;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = isSelected
+          ? 'px-3 py-1.5 rounded-lg text-xs font-bold bg-ink text-white shadow-sm transition-all'
+          : 'px-3 py-1.5 rounded-lg text-xs font-medium bg-[#F6F4EF] text-ink hover:bg-warmgray border border-[#DCD7CE] transition-all';
+        btn.innerHTML = `${stock.name} <span class="opacity-70 font-mono text-[11px]">(${stock.code})</span>`;
+        btn.addEventListener('click', () => {
+          state.selectedStockCode = stock.code;
+          renderStockSelector();
+          renderMainValuationView();
+        });
+        container.appendChild(btn);
+      });
+    }
+
+    // 5. Render Main Valuation View
+    function renderMainValuationView() {
+      const stock = STOCKS_DATA[state.selectedStockCode];
+      if (!stock) return;
+
+      // Sector Warning Banner
+      const warnBanner = document.getElementById('sectorSuitabilityBanner');
+      if (stock.isIntangibleWarning) {
+        warnBanner.classList.remove('hidden');
+      } else {
+        warnBanner.classList.add('hidden');
+      }
+
+      // Hero Fields
+      document.getElementById('heroStockCode').textContent = stock.code;
+      document.getElementById('heroStockSector').textContent = stock.sector;
+      document.getElementById('heroQaStatus').textContent = stock.qaStatus;
+      document.getElementById('heroCurrentPrice').textContent = stock.currentPrice;
+      document.getElementById('heroMarketCap').textContent = stock.marketCap;
+      document.getElementById('heroStockName').textContent = stock.name;
+
+      const compBadge = document.getElementById('heroComplianceBadge');
+      compBadge.textContent = stock.complianceBadge;
+      compBadge.className = stock.badgeType === 'pass'
+        ? 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-sage-100 text-sage-800'
+        : 'text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-crimson-100 text-crimson-700';
+
+      document.getElementById('heroFriendlySummary').innerHTML = stock.friendlySummary;
+      document.getElementById('heroNcavRatioText').textContent = stock.ncavRatioText;
+      document.getElementById('heroNcavRatioText').className = stock.badgeType === 'pass'
+        ? 'text-sage-700 font-bold tabular-nums'
+        : 'text-crimson-700 font-bold tabular-nums';
+
+      const progressBar = document.getElementById('heroNcavProgressBar');
+      progressBar.style.width = `${stock.ncavProgressWidth}%`;
+      progressBar.className = stock.badgeType === 'pass'
+        ? 'h-full bg-sage-600 rounded-full transition-all duration-500'
+        : 'h-full bg-crimson-700 rounded-full transition-all duration-500';
+
+      document.getElementById('heroDiscountedAssets').textContent = stock.discountedAssets;
+      document.getElementById('heroTotalLiabilities').textContent = stock.totalLiabilities;
+      document.getElementById('heroFootnoteLiabilities').textContent = stock.footnoteLiabilities;
+      document.getElementById('heroFinalNcav').textContent = stock.finalNcav;
+      document.getElementById('heroPerShareNcav').textContent = stock.perShareNcav;
+
+      // 1.5 Index Blurred Hero Card
+      document.getElementById('hero15IndexScore').textContent = stock.index15;
+      document.getElementById('heroDownsidePercentile').textContent = stock.downsidePercentile;
+      document.getElementById('heroAsymmetricRatio').textContent = stock.asymmetricRatio;
+      document.getElementById('heroBacktestWinRate').textContent = stock.backtestWinRate;
+
+      // 4 Pillars
+      document.getElementById('pillar1Status').textContent = stock.pillar1Status;
+      document.getElementById('pillar1Status').className = stock.badgeType === 'pass' ? 'text-xs font-bold text-sage-700' : 'text-xs font-bold text-crimson-700';
+      document.getElementById('pillar1Value').textContent = stock.pillar1Value;
+      document.getElementById('pillar1Value').className = stock.badgeType === 'pass' ? 'font-editorial text-2xl font-bold text-sage-700' : 'font-editorial text-2xl font-bold text-crimson-700';
+      document.getElementById('pillar1Desc').textContent = stock.pillar1Desc;
+      document.getElementById('pillar1Sub').textContent = stock.pillar1Sub;
+
+      document.getElementById('pillar2Status').textContent = stock.pillar2Status;
+      document.getElementById('pillar2Value').textContent = stock.pillar2Value;
+      document.getElementById('pillar2Desc').textContent = stock.pillar2Desc;
+      document.getElementById('pillar2Sub').textContent = stock.pillar2Sub;
+
+      document.getElementById('pillar3Value').textContent = stock.pillar3Value;
+      document.getElementById('pillar3Sub').textContent = stock.pillar3Sub;
+
+      document.getElementById('pillar4Value').textContent = stock.pillar4Value;
+      document.getElementById('pillar4Sub').textContent = stock.pillar4Sub;
+
+      // Deep Mode Footnote Table
+      const tbody = document.getElementById('deepFootnoteTableBody');
+      tbody.innerHTML = '';
+      stock.footnoteTable.forEach((row) => {
+        const tr = document.createElement('tr');
+        const isFootnote = row.type === 'footnote';
+        tr.className = isFootnote ? 'bg-crimson-50/70 font-semibold text-crimson-700' : '';
+        tr.innerHTML = `
+          <td class="py-2 pr-2">${row.item}</td>
+          <td class="py-2 px-2 text-right">${row.raw}</td>
+          <td class="py-2 px-2 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] ${isFootnote ? 'bg-crimson-100 text-crimson-700' : 'bg-warmgray text-ink'}">${row.weight}</span></td>
+          <td class="py-2 pl-2 text-right font-semibold">${row.recognized}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      document.getElementById('deepFootnoteRawExcerpt').textContent = stock.footnoteExcerpt;
+
+      // Render Deep Mode Chart
+      renderDeepChart();
+    }
+
+    // 6. Render Deep Mode Chart (Chart.js)
+    function renderDeepChart() {
+      const stock = STOCKS_DATA[state.selectedStockCode];
+      const ctx = document.getElementById('deepAnalysisChart').getContext('2d');
+      if (deepChartInstance) {
+        deepChartInstance.destroy();
+      }
+
+      const mode = state.activeDeepChartMode;
+      const titleEl = document.getElementById('deepChartTitle');
+      const subtitleEl = document.getElementById('deepChartSubtitle');
+
+      if (mode === 'ncavBand') {
+        titleEl.textContent = `[${stock.name}] 주가 추이 vs 1.5 보수적 청산가치(NCAV) 안전마진 기준선 (단위: 천 원)`;
+        subtitleEl.textContent = '녹색 점선(주당 보수적 청산가치) 아래 구간은 최악의 청산 가정 시에도 원금 보존 안전마진이 확보된 영역입니다.';
+        const d = stock.charts.ncavBand;
+        deepChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: d.labels,
+            datasets: [
+              {
+                label: '주당 보수적 청산가치 (1.5 안전 기준선)',
+                data: d.ncavLine,
+                borderColor: '#1D4937',
+                backgroundColor: 'rgba(29, 73, 55, 0.10)',
+                borderWidth: 2.5,
+                borderDash: [6, 4],
+                fill: true,
+                tension: 0.25
+              },
+              {
+                label: '종목 주가 (EOD 종가)',
+                data: d.stockPrice,
+                borderColor: '#181816',
+                backgroundColor: '#181816',
+                borderWidth: 2.5,
+                fill: false,
+                tension: 0.25
+              },
+              {
+                label: '하락장 방어 상대수익률 지수 (2022.4Q=100)',
+                data: d.kospiRel,
+                borderColor: '#A36316',
+                borderWidth: 2,
+                yAxisID: 'y1',
+                tension: 0.3
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'top', labels: { font: { family: 'Noto Sans KR', size: 11 } } }
+            },
+            scales: {
+              y: {
+                position: 'left',
+                title: { display: true, text: '주가 및 청산가치 (천 원)', font: { size: 11 } },
+                grid: { color: '#EAE6DF' }
+              },
+              y1: {
+                position: 'right',
+                title: { display: true, text: '방어 상대지수 (기준=100)', font: { size: 11 } },
+                grid: { drawOnChartArea: false }
+              }
+            }
+          }
+        });
+      } else if (mode === 'fcfComparison') {
+        titleEl.textContent = `[${stock.name}] 회계상 영업이익 vs 실질 FCF(잉여현금흐름) 3개년 비교 (단위: 억 원)`;
+        subtitleEl.textContent = '장부상 이익의 착시를 방어하기 위해 영업활동현금흐름에서 필수 설비투자금(CAPEX)을 차감한 진짜 여유 현금을 비교합니다.';
+        const d = stock.charts.fcfComparison;
+        deepChartInstance = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels: d.labels,
+            datasets: [
+              {
+                label: '장부상 회계 영업이익 (억 원)',
+                data: d.accountingOp,
+                backgroundColor: '#D0CBC1',
+                borderColor: '#62605B',
+                borderWidth: 1,
+                borderRadius: 6
+              },
+              {
+                label: '실질 여유 현금흐름 (1.5 FCF, 억 원)',
+                data: d.realFcf,
+                backgroundColor: '#1D4937',
+                borderRadius: 6
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top', labels: { font: { family: 'Noto Sans KR', size: 11 } } }
+            },
+            scales: {
+              y: {
+                title: { display: true, text: '금액 (억 원)', font: { size: 11 } },
+                grid: { color: '#EAE6DF' }
+              }
+            }
+          }
+        });
+      } else if (mode === 'divergence') {
+        titleEl.textContent = `[${stock.name}] 증권사 리포트 낙관도 vs 실제 기관·외국인 누적 순매수 추이`;
+        subtitleEl.textContent = '증권사 보고서의 낙관적 전망과 실제 기관 매매 강도를 교차 검증하여 시장의 과열과 소외 왜곡을 감지합니다.';
+        const d = stock.charts.divergence;
+        deepChartInstance = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: d.labels,
+            datasets: [
+              {
+                label: '기관·외국인 누적 순매수 (억 원)',
+                data: d.instNetBuy,
+                borderColor: '#1D4937',
+                backgroundColor: 'rgba(29, 73, 55, 0.12)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.3
+              },
+              {
+                label: '증권사 리포트 낙관 지수 (0~100)',
+                data: d.reportOptimism,
+                borderColor: '#9B2226',
+                borderDash: [4, 4],
+                borderWidth: 2,
+                yAxisID: 'y1',
+                tension: 0.3
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'top', labels: { font: { family: 'Noto Sans KR', size: 11 } } }
+            },
+            scales: {
+              y: {
+                position: 'left',
+                title: { display: true, text: '기관·외인 누적 순매수 (억 원)', font: { size: 11 } },
+                grid: { color: '#EAE6DF' }
+              },
+              y1: {
+                position: 'right',
+                min: 0,
+                max: 100,
+                title: { display: true, text: '리포트 낙관도 지수', font: { size: 11 } },
+                grid: { drawOnChartArea: false }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    // 7. Update Pro Mode State (Blur vs Unlocked)
+    function updateProModeUI() {
+      const body = document.body;
+      const badge = document.getElementById('currentTierBadge');
+      const quickBtn = document.getElementById('quickToggleProBtn');
+      const headerCta = document.getElementById('openProModalHeaderBtn');
+
+      if (state.isProUnlocked) {
+        body.classList.add('pro-unlocked');
+        badge.textContent = 'PRO 멤버십 활성 (전 지표 블러 해제됨)';
+        badge.className = 'text-xs font-semibold text-sage-800 bg-sage-100 px-2 py-0.5 rounded border border-sage-600';
+        quickBtn.textContent = '무료 블러 모드로 되돌리기';
+        headerCta.textContent = '✓ PRO 구독 중 (월 9,900원)';
+      } else {
+        body.classList.remove('pro-unlocked');
+        badge.textContent = '무료 체험 (상위 10대 종목 일부 개방)';
+        badge.className = 'text-xs font-semibold text-bronze-700 bg-bronze-50 px-2 py-0.5 rounded border border-bronze-100';
+        quickBtn.textContent = 'PRO 즉시 전환 테스트';
+        headerCta.textContent = '로그인 · PRO 구독 (월 9,900원)';
+      }
+
+      document.querySelectorAll('.pro-lock-badge').forEach((el) => {
+        el.textContent = state.isProUnlocked ? '✓ PRO 열람중' : '🔒 PRO 전용';
+      });
+    }
+
+    // 8. Portfolio Net Return & Fee Leakage Calculator
+    function updatePortfolioSimulation() {
+      const capitalManWon = parseFloat(document.getElementById('simTotalCapital').value) || 5000;
+      const turnover = parseFloat(document.getElementById('simTurnoverCount').value) || 1;
+      const grossPct = parseFloat(document.getElementById('simGrossReturn').value) || 0;
+
+      // Round-trip KRX transaction tax + brokerage fee + slippage (~0.21% per round trip)
+      const roundTripCostPct = 0.21;
+      const totalFeePct = +(turnover * roundTripCostPct).toFixed(2);
+      const feeAmountManWon = Math.round(capitalManWon * (totalFeePct / 100));
+
+      const netPct = +(grossPct - totalFeePct).toFixed(2);
+      const netAmountManWon = Math.round(capitalManWon * (netPct / 100));
+
+      document.getElementById('simFeeLeakageAmount').textContent = `- ${feeAmountManWon.toLocaleString()}만 원 (-${totalFeePct}%p)`;
+      const netEl = document.getElementById('simNetReturnAmount');
+      netEl.textContent = `${netPct >= 0 ? '+' : ''}${netPct}% (${netAmountManWon >= 0 ? '+' : ''}${netAmountManWon.toLocaleString()}만 원)`;
+      netEl.className = netPct >= 0
+        ? 'font-editorial text-xl font-bold text-ink mt-1'
+        : 'font-editorial text-xl font-bold text-crimson-700 mt-1';
+
+      // Weighted safety margin
+      let weightSum = 0;
+      let weightedMarginSum = 0;
+      document.querySelectorAll('.pf-weight-input').forEach((input) => {
+        const w = parseFloat(input.value) || 0;
+        const m = parseFloat(input.getAttribute('data-pf-margin')) || 0;
+        weightSum += w;
+        weightedMarginSum += w * m;
+      });
+      const avgMargin = weightSum > 0 ? (weightedMarginSum / weightSum).toFixed(2) : '0.00';
+      document.getElementById('simWeightedMargin').textContent = `+${avgMargin}% 확보 (비중합 ${weightSum}%)`;
+    }
+
+    // 9. BEP Calculator (Page 2)
+    function updateBepSimulation() {
+      const subs = parseInt(document.getElementById('bepSubscriberSlider').value, 10) || 500;
+      const revenueManWon = +((subs * 9900) / 10000).toFixed(1);
+      const fixedCostManWon = 340; // Server 80 + KRX License 220 + LLM 40
+      const netManWon = +(revenueManWon - fixedCostManWon).toFixed(1);
+
+      document.getElementById('bepSubscriberCountText').textContent = `${subs.toLocaleString()}명 (월 매출 ${revenueManWon.toLocaleString()}만 원)`;
+      const netEl = document.getElementById('bepNetProfitText');
+      const statusBadge = document.getElementById('bepStatusBadge');
+
+      if (subs < 500) {
+        statusBadge.textContent = '초기 고객 유입 단계 (BEP 500명 도달 전)';
+        statusBadge.className = 'text-xs font-bold px-2.5 py-1 rounded bg-bronze-100 text-bronze-700';
+      } else if (subs < 1000) {
+        statusBadge.textContent = '1단계 BEP (인프라 자생선 500명+) 달성';
+        statusBadge.className = 'text-xs font-bold px-2.5 py-1 rounded bg-sage-100 text-sage-800';
+      } else {
+        statusBadge.textContent = '2단계 실질 흑자선 (1,000명+) 돌파';
+        statusBadge.className = 'text-xs font-bold px-2.5 py-1 rounded bg-ink text-white';
+      }
+
+      netEl.textContent = `인프라 고정비(340만) 차감 후 월 ${netManWon >= 0 ? '+' : ''}${netManWon.toLocaleString()}만 원`;
+      netEl.className = netManWon >= 0 ? 'font-bold text-sage-700' : 'font-bold text-crimson-700';
+    }
+
+    // 10. Event Listeners Initialization
+    window.addEventListener('DOMContentLoaded', () => {
+      renderStockSelector();
+      renderMainValuationView();
+      updateProModeUI();
+      updatePortfolioSimulation();
+      updateBepSimulation();
+
+      // Navigation Tabs
+      document.querySelectorAll('.nav-tab-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const targetTab = btn.getAttribute('data-tab');
+          state.activeTab = targetTab;
+
+          document.querySelectorAll('.nav-tab-btn').forEach((b) => {
+            b.className = 'nav-tab-btn px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all text-muted hover:text-ink whitespace-nowrap';
+          });
+          btn.className = 'nav-tab-btn px-3.5 py-1.5 rounded-md text-xs sm:text-sm font-semibold transition-all bg-surface text-ink shadow-sm whitespace-nowrap';
+
+          ['valuation', 'pipeline', 'portfolio', 'philosophy'].forEach((viewId) => {
+            const el = document.getElementById(`view-${viewId}`);
+            if (viewId === targetTab) {
+              el.classList.remove('hidden');
+            } else {
+              el.classList.add('hidden');
+            }
+          });
+
+          if (targetTab === 'valuation') {
+            renderDeepChart();
+          }
+        });
+      });
+
+      // Brand Home Button
+      document.getElementById('brandHomeBtn').addEventListener('click', () => {
+        document.querySelector('.nav-tab-btn[data-tab="valuation"]').click();
+      });
+
+      // Stock Search
+      const handleSearch = () => {
+        const q = document.getElementById('stockSearchInput').value.trim();
+        if (!q) return;
+        const found = Object.values(STOCKS_DATA).find(
+          (s) => s.name.includes(q) || s.code.includes(q)
+        );
+        if (found) {
+          state.selectedStockCode = found.code;
+          renderStockSelector();
+          renderMainValuationView();
+          showToast(`'${found.name} (${found.code})' 주석 가치평가 데이터를 불러왔습니다.`);
+        } else {
+          showToast(`검색어 '${q}'에 해당하는 샘플 종목이 없습니다. (태광산업, 세아베스틸지주, 현대홈쇼핑, 신도리코 검색 가능)`);
+        }
+      };
+      document.getElementById('stockSearchBtn').addEventListener('click', handleSearch);
+      document.getElementById('stockSearchInput').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleSearch();
+      });
+
+      // Deep Mode Toggle Button
+      document.getElementById('toggleDeepModeBtn').addEventListener('click', () => {
+        state.isDeepModeOpen = !state.isDeepModeOpen;
+        const panel = document.getElementById('deepModePanel');
+        const arrow = document.getElementById('deepModeArrow');
+        if (state.isDeepModeOpen) {
+          panel.classList.remove('hidden');
+          arrow.style.transform = 'rotate(0deg)';
+          renderDeepChart();
+        } else {
+          panel.classList.add('hidden');
+          arrow.style.transform = 'rotate(-90deg)';
+        }
+      });
+
+      // Deep Mode Chart Switcher
+      document.querySelectorAll('.deep-chart-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          state.activeDeepChartMode = btn.getAttribute('data-chart-mode');
+          document.querySelectorAll('.deep-chart-btn').forEach((b) => {
+            b.className = 'deep-chart-btn px-3 py-1.5 rounded text-xs font-medium text-[#C7C3B8] hover:text-white transition-all';
+          });
+          btn.className = 'deep-chart-btn px-3 py-1.5 rounded text-xs font-semibold bg-white text-ink transition-all';
+          renderDeepChart();
+        });
+      });
+
+      // Blurred Cards & Pro Modal Triggers
+      const openModal = () => {
+        const modal = document.getElementById('proConversionModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+      };
+      const closeModal = () => {
+        const modal = document.getElementById('proConversionModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      };
+
+      document.querySelectorAll('.pro-card-trigger').forEach((card) => {
+        card.addEventListener('click', () => {
+          if (!state.isProUnlocked) {
+            openModal();
+          }
+        });
+      });
+
+      document.getElementById('openProModalHeaderBtn').addEventListener('click', openModal);
+      document.getElementById('closeProModalBtn').addEventListener('click', closeModal);
+      document.getElementById('continueFreeBtn').addEventListener('click', closeModal);
+
+      // Quick Toggle Pro Mode Button in Header
+      document.getElementById('quickToggleProBtn').addEventListener('click', () => {
+        state.isProUnlocked = !state.isProUnlocked;
+        updateProModeUI();
+        showToast(
+          state.isProUnlocked
+            ? 'PRO 멤버십 모드가 활성화되어 모든 블러(1.5 지수·산업흐름·수급괴리)가 해제되었습니다.'
+            : '무료 체험 모드로 전환되었습니다. 핵심 승부처 지표에 블러가 적용됩니다.'
+        );
+      });
+
+      // Modal Login Form Submit -> Unlock Pro
+      document.getElementById('proLoginForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        state.isProUnlocked = true;
+        updateProModeUI();
+        closeModal();
+        showToast('환영합니다! 월 9,900원 PRO 모드가 적용되어 블러 처리된 모든 핵심 지표가 잠금 해제되었습니다.');
+      });
+
+      // Page 2: Pipeline Stage Selection & Simulation
+      const stageDescriptions = {
+        1: '[STAGE 01] 장 마감(18:00) 후 Koscom/KRX EOD 시세·기관수급 및 DART 공시 원문 수집 완료',
+        2: '[STAGE 02] DART 비정형 주석 원문 → LLM 정형화 파싱 완료 (변동 없는 문단 해시 캐싱 적용)',
+        3: '[STAGE 03] 현금 100%·채권 75%·재고 50% 가중치 및 주석부채 100% 차감 연산 → PiT DB 적재',
+        4: '[STAGE 04] 4단계 이상치 탐지 자동화 큐 점검: 단위 오류 및 급변 종목 자동 격리',
+        5: '[STAGE 05] 분기 핵심 종목 휴먼 샘플링 QA 승인 완료 및 비구독자 API 마스킹 배포'
+      };
+
+      document.querySelectorAll('.pipeline-stage-card').forEach((card) => {
+        card.addEventListener('click', () => {
+          const st = card.getAttribute('data-stage');
+          document.querySelectorAll('.pipeline-stage-card').forEach((c) => c.classList.remove('pipeline-node-active'));
+          card.classList.add('pipeline-node-active');
+          document.getElementById('pipelineTerminalHeader').textContent = stageDescriptions[st];
+        });
+      });
+
+      document.getElementById('runPipelineSimBtn').addEventListener('click', () => {
+        const cards = Array.from(document.querySelectorAll('.pipeline-stage-card'));
+        let idx = 0;
+        showToast('야간 EOD 일괄 데이터 파이프라인(Stage 1 → 5) 시뮬레이션을 시작합니다.');
+        const timer = setInterval(() => {
+          cards.forEach((c) => c.classList.remove('pipeline-node-active'));
+          cards[idx].classList.add('pipeline-node-active');
+          const st = idx + 1;
+          document.getElementById('pipelineTerminalHeader').textContent = stageDescriptions[st];
+          idx++;
+          if (idx >= cards.length) {
+            clearInterval(timer);
+            showToast('✓ EOD 배치 연산 및 하이브리드 휴먼 QA 검증이 모두 완료되었습니다.');
+          }
+        }, 550);
+      });
+
+      // Sample DART Note Switcher
+      document.querySelectorAll('.sample-note-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const noteType = btn.getAttribute('data-sample-note');
+          document.querySelectorAll('.sample-note-btn').forEach((b) => {
+            b.className = 'sample-note-btn px-2 py-0.5 rounded bg-transparent text-[#A8A49B] hover:text-white text-[11px]';
+          });
+          btn.className = 'sample-note-btn px-2 py-0.5 rounded bg-[#2E2D2A] text-white text-[11px]';
+
+          if (noteType === 'contingent') {
+            document.getElementById('dartRawTextDisplay').textContent = `[주석 29. 우발채무와 약정사항]
+(1) 당기말 현재 당사는 종속기업 및 협력회사의 차입금에 대하여 54,000백만원의 지급보증을 제공하고 있습니다.
+(2) 당기말 현재 피고로 계류 중인 소송사건은 총 4건(소송가액 합계 18,200백만원)이며, 소송의 결과를 합리적으로 예측할 수 없어 재무제표상 충당부채로 계상하지 아니하였습니다.
+(3) 단기 및 소액자산 리스 약정으로 인해 재무상태표에 인식되지 않은 향후 의무 리스료 총액은 19,000백만원입니다.`;
+            document.getElementById('dartParsedJsonDisplay').textContent = `{
+  "stock_code": "003240",
+  "report_period": "2026.3Q_PiT",
+  "cache_hit": true,
+  "unrecognized_contingent_liabilities_krw": {
+    "debt_guarantee_krw": 54000000000,
+    "pending_litigation_krw": 18200000000,
+    "off_balance_lease_krw": 19000000000,
+    "total_conservative_deduction_krw": 91200000000
+  },
+  "confidence_score": 0.985,
+  "qa_routing": "PASS_AUTO_VERIFIED"
+}`;
+          } else {
+            document.getElementById('dartRawTextDisplay').textContent = `[주석 7. 매출채권 및 기타채권 연령분석]
+당기말 현재 매출채권 총액 416,000백만원 중 6개월 이상 연체되었으나 대손충당금이 설정되지 않은 약정 채권은 28,400백만원입니다. 당사는 거래처 담보 설정을 근거로 손상차손을 미인식하였습니다.`;
+            document.getElementById('dartParsedJsonDisplay').textContent = `{
+  "stock_code": "003240",
+  "report_period": "2026.3Q_PiT",
+  "receivables_gross_krw": 416000000000,
+  "conservative_haircut_rate": 0.75,
+  "recognized_ncav_receivables_krw": 312000000000,
+  "overdue_6m_unprovisioned_flag": true,
+  "confidence_score": 0.978,
+  "qa_routing": "PASS_AUTO_VERIFIED"
+}`;
+          }
+        });
+      });
+
+      // BEP Slider
+      document.getElementById('bepSubscriberSlider').addEventListener('input', updateBepSimulation);
+
+      // Page 3: Portfolio Simulator Inputs
+      ['simTotalCapital', 'simTurnoverCount', 'simGrossReturn'].forEach((id) => {
+        document.getElementById(id).addEventListener('input', updatePortfolioSimulation);
+      });
+      document.querySelectorAll('.pf-weight-input').forEach((input) => {
+        input.addEventListener('input', updatePortfolioSimulation);
+      });
+      document.getElementById('resetPortfolioWeightsBtn').addEventListener('click', () => {
+        const defaults = [40, 35, 25];
+        document.querySelectorAll('.pf-weight-input').forEach((input, idx) => {
+          input.value = defaults[idx];
+        });
+        updatePortfolioSimulation();
+        showToast('포트폴리오 기본 비중(40% : 35% : 25%)으로 초기화되었습니다.');
+      });
+
+      // Retention Alert Filter
+      document.querySelectorAll('.alert-filter-btn').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const filter = btn.getAttribute('data-alert-filter');
+          document.querySelectorAll('.alert-filter-btn').forEach((b) => {
+            b.className = 'alert-filter-btn px-2.5 py-1 rounded text-xs font-medium bg-warmgray text-ink';
+          });
+          btn.className = 'alert-filter-btn px-2.5 py-1 rounded text-xs font-semibold bg-ink text-white';
+
+          document.querySelectorAll('#retentionAlertFeed > div').forEach((item) => {
+            const type = item.getAttribute('data-alert-type');
+            if (filter === 'all' || filter === type) {
+              item.classList.remove('hidden');
+            } else {
+              item.classList.add('hidden');
+            }
+          });
+        });
+      });
+
+      document.getElementById('testPushToastBtn').addEventListener('click', () => {
+        showToast('[1.5 정기 리스크 진단 알림] 보유 종목 3분기 DART 주석 우발부채 점검 완료: 전 종목 NCAV 안전 기준선 이상 유지 중입니다.');
+      });
+    });
+  </script>
+</body>
+</html>
